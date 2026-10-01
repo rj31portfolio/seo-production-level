@@ -17,6 +17,8 @@
             @if(auth()->user()->is_super_admin)
                 <a href="{{ route('super-admin') }}" class="nav-link {{ request()->is('super-admin*') ? 'nav-active' : '' }}">◈ <span>Platform overview</span></a>
                 <a href="{{ route('seo.settings') }}" class="nav-link">⚙ <span>SEO engine settings</span></a>
+                <a href="{{ route('ai.settings') }}" class="nav-link">✦ <span>AI provider settings</span></a>
+                <a href="{{ route('tool-plans.index') }}" class="nav-link">▤ <span>Platform tool plans</span></a>
             @endif
             @if(app(\App\Tenancy\TenantContext::class)->agency())
                 <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'nav-active' : '' }}">◈ <span>Overview</span></a>

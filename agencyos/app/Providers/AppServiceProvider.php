@@ -4,8 +4,11 @@ namespace App\Providers;
 
 use App\Models\Client;
 use App\Models\Project;
+use App\Models\SeoToolRun;
 use App\Models\Website;
 use App\Policies\OperationalPolicy;
+use App\Policies\SeoToolRunPolicy;
+use App\Services\Seo\ToolRegistry;
 use App\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
@@ -35,10 +38,10 @@ class AppServiceProvider extends ServiceProvider
         }
         Gate::define('superadmin.manage', fn ($user) => $user->hasPermission('superadmin.manage'));
         foreach (array_unique(array_merge(...array_values(config('seo_tools.role_permissions')))) as $permission) {
-            Gate::define($permission,fn ($user)=>$user->hasPermission($permission));
+            Gate::define($permission, fn ($user) => $user->hasPermission($permission));
         }
-        Gate::policy(\App\Models\SeoToolRun::class,\App\Policies\SeoToolRunPolicy::class);
-        RateLimiter::for('seo-tools',fn ($request)=>Limit::perMinute(\App\Services\Seo\ToolRegistry::settings()['runs_per_minute'])->by($request->user()->id.'|'.$request->session()->get('agency_id')));
+        Gate::policy(SeoToolRun::class, SeoToolRunPolicy::class);
+        RateLimiter::for('seo-tools', fn ($request) => Limit::perMinute(ToolRegistry::settings()['runs_per_minute'])->by($request->user()->id.'|'.$request->session()->get('agency_id')));
         RateLimiter::for('auth', fn ($request) => [
             Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()),
             Limit::perMinute(30)->by($request->ip()),

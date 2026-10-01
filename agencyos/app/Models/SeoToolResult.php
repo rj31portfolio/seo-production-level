@@ -2,14 +2,24 @@
 
 namespace App\Models;
 
+use Database\Factories\SeoToolResultFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SeoToolResult extends TenantModel
 {
-    /** @use HasFactory<\Database\Factories\SeoToolResultFactory> */
+    /** @use HasFactory<SeoToolResultFactory> */
     use HasFactory;
-    protected $guarded = ['id','agency_id'];
-    protected function casts(): array { return ['data'=>'array']; }
-    public function run(): \Illuminate\Database\Eloquent\Relations\BelongsTo { return $this->belongsTo(SeoToolRun::class,'seo_tool_run_id'); }
+
+    protected $guarded = ['id', 'agency_id'];
+
+    protected function casts(): array
+    {
+        return ['data' => 'array'];
+    }
+
+    public function run(): BelongsTo
+    {
+        return $this->belongsTo(SeoToolRun::class, 'seo_tool_run_id');
+    }
 }

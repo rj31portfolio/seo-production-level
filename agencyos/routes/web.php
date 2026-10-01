@@ -1,10 +1,18 @@
 <?php
 
+use App\Http\Controllers\AISettingsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BacklinkController;
 use App\Http\Controllers\ClientSubscriptionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FoundationController;
+use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\OperationsController;
+use App\Http\Controllers\RankingController;
+use App\Http\Controllers\SeoSettingsController;
+use App\Http\Controllers\SeoToolsController;
+use App\Http\Controllers\SeoWorkController;
+use App\Http\Controllers\ToolPlanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect(auth()->check() ? (auth()->user()->is_super_admin ? '/super-admin' : '/dashboard') : '/login'));
@@ -22,43 +30,61 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/agency/switch', [AuthController::class, 'switchAgency'])->name('agency.switch');
     Route::middleware('can:superadmin.manage')->group(function () {
-        Route::get('/super-admin/seo-settings',[\App\Http\Controllers\SeoSettingsController::class,'index'])->name('seo.settings');
-        Route::patch('/super-admin/seo-settings',[\App\Http\Controllers\SeoSettingsController::class,'update']);
-        Route::post('/super-admin/seo-settings/limits',[\App\Http\Controllers\SeoSettingsController::class,'limit'])->name('seo.settings.limit');
+        Route::get('/super-admin/tool-plans', [ToolPlanController::class, 'index'])->name('tool-plans.index');
+        Route::post('/super-admin/tool-plans', [ToolPlanController::class, 'store'])->name('tool-plans.store');
+        Route::post('/super-admin/tool-plans/assign', [ToolPlanController::class, 'assign'])->name('tool-plans.assign');
+        Route::get('/super-admin/ai-settings', [AISettingsController::class, 'index'])->name('ai.settings');
+        Route::patch('/super-admin/ai-settings', [AISettingsController::class, 'update']);
+        Route::post('/super-admin/ai-settings/test', [AISettingsController::class, 'test'])->middleware('throttle:seo-tools')->name('ai.settings.test');
+        Route::get('/super-admin/seo-settings', [SeoSettingsController::class, 'index'])->name('seo.settings');
+        Route::patch('/super-admin/seo-settings', [SeoSettingsController::class, 'update']);
+        Route::post('/super-admin/seo-settings/limits', [SeoSettingsController::class, 'limit'])->name('seo.settings.limit');
         Route::get('/super-admin', [FoundationController::class, 'superAdmin'])->name('super-admin');
         Route::patch('/super-admin/agencies/{agency}', [FoundationController::class, 'agencyStatus'])->name('super-admin.agency-status');
         Route::get('/super-admin/expiry-settings', [ClientSubscriptionController::class, 'expirySettings'])->name('expiry.settings');
         Route::patch('/super-admin/expiry-settings', [ClientSubscriptionController::class, 'updateExpirySettings']);
     });
     Route::middleware('tenant')->group(function () {
-        $seo=\App\Http\Controllers\SeoToolsController::class;
-        $work=\App\Http\Controllers\SeoWorkController::class;
-        $rank=\App\Http\Controllers\RankingController::class;
-        Route::middleware('can:seo_tools.rankings')->group(function () use ($rank): void {
-            Route::get('/seo/rankings',[$rank,'index'])->name('seo.rankings.index');
-            Route::get('/seo/rankings/export',[$rank,'export'])->middleware('throttle:seo-tools')->name('seo.rankings.export');
-            Route::post('/seo/rankings',[$rank,'store'])->middleware('throttle:seo-tools')->name('seo.rankings.store');
-            Route::post('/seo/rankings/import',[$rank,'import'])->middleware('throttle:seo-tools')->name('seo.rankings.import');
-            Route::get('/seo/rankings/{keyword}',[$rank,'show'])->name('seo.rankings.show');
-            Route::post('/seo/rankings/{keyword}',[$rank,'entry'])->middleware('throttle:seo-tools')->name('seo.rankings.entry');
-            Route::post('/seo/runs/{run}/keywords',[$rank,'saveRun'])->middleware('throttle:seo-tools')->name('seo.runs.keywords');
+        $seo = SeoToolsController::class;
+        $work = SeoWorkController::class;
+        $rank = RankingController::class;
+        $links = BacklinkController::class;
+        Route::get('/seo/monitoring', [MonitoringController::class, 'index'])->middleware('can:seo_tools.audit')->name('seo.monitoring.index');
+        Route::post('/seo/monitoring', [MonitoringController::class, 'store'])->middleware(['can:seo_tools.audit', 'throttle:seo-tools'])->name('seo.monitoring.store');
+        Route::middleware('can:seo_tools.backlinks')->group(function () use ($links): void {
+            Route::get('/seo/backlinks', [$links, 'index'])->name('seo.backlinks.index');
+            Route::post('/seo/backlinks', [$links, 'store'])->middleware('throttle:seo-tools')->name('seo.backlinks.store');
+            Route::post('/seo/backlinks/import', [$links, 'import'])->middleware('throttle:seo-tools')->name('seo.backlinks.import');
+            Route::get('/seo/backlinks/export', [$links, 'export'])->middleware('throttle:seo-tools')->name('seo.backlinks.export');
+            Route::get('/seo/backlinks/{backlink}', [$links, 'show'])->name('seo.backlinks.show');
+            Route::post('/seo/backlinks/{backlink}/verify', [$links, 'verify'])->middleware('throttle:seo-tools')->name('seo.backlinks.verify');
         });
-        Route::get('/seo/tasks',[$work,'tasks'])->middleware('can:tasks.view')->name('seo.tasks.index');
-        Route::patch('/seo/tasks/{task}',[$work,'updateTask'])->middleware('can:tasks.view')->name('seo.tasks.update');
-        Route::post('/seo/runs/{run}/tasks',[$work,'generateTasks'])->middleware('can:tasks.create')->name('seo.runs.tasks');
-        Route::post('/seo/runs/{run}/report',[$work,'generateReport'])->middleware('can:seo_tools.reports')->name('seo.runs.report');
-        Route::get('/seo/reports',[$work,'reports'])->middleware('can:seo_tools.reports')->name('seo.reports.index');
-        Route::get('/seo/reports/{report}',[$work,'report'])->middleware('can:seo_tools.reports')->name('seo.reports.show');
-        Route::get('/seo/reports/{report}/html',[$work,'html'])->middleware('can:seo_tools.reports')->name('seo.reports.html');
-        Route::get('/seo/reports/{report}/pdf',[$work,'pdf'])->middleware('can:seo_tools.reports')->name('seo.reports.pdf');
+        Route::middleware('can:seo_tools.rankings')->group(function () use ($rank): void {
+            Route::get('/seo/rankings', [$rank, 'index'])->name('seo.rankings.index');
+            Route::get('/seo/rankings/export', [$rank, 'export'])->middleware('throttle:seo-tools')->name('seo.rankings.export');
+            Route::post('/seo/rankings', [$rank, 'store'])->middleware('throttle:seo-tools')->name('seo.rankings.store');
+            Route::post('/seo/rankings/import', [$rank, 'import'])->middleware('throttle:seo-tools')->name('seo.rankings.import');
+            Route::get('/seo/rankings/{keyword}', [$rank, 'show'])->name('seo.rankings.show');
+            Route::post('/seo/rankings/{keyword}', [$rank, 'entry'])->middleware('throttle:seo-tools')->name('seo.rankings.entry');
+            Route::post('/seo/runs/{run}/keywords', [$rank, 'saveRun'])->middleware('throttle:seo-tools')->name('seo.runs.keywords');
+        });
+        Route::get('/seo/tasks', [$work, 'tasks'])->middleware('can:tasks.view')->name('seo.tasks.index');
+        Route::patch('/seo/tasks/{task}', [$work, 'updateTask'])->middleware('can:tasks.view')->name('seo.tasks.update');
+        Route::post('/seo/runs/{run}/tasks', [$work, 'generateTasks'])->middleware('can:tasks.create')->name('seo.runs.tasks');
+        Route::post('/seo/runs/{run}/report', [$work, 'generateReport'])->middleware('can:seo_tools.reports')->name('seo.runs.report');
+        Route::get('/seo/reports', [$work, 'reports'])->middleware('can:seo_tools.reports')->name('seo.reports.index');
+        Route::get('/seo/reports/{report}', [$work, 'report'])->middleware('can:seo_tools.reports')->name('seo.reports.show');
+        Route::get('/seo/reports/{report}/html', [$work, 'html'])->middleware('can:seo_tools.reports')->name('seo.reports.html');
+        Route::get('/seo/reports/{report}/pdf', [$work, 'pdf'])->middleware('can:seo_tools.reports')->name('seo.reports.pdf');
+        Route::post('/seo/reports/{report}/pdf', [$work, 'preparePdf'])->middleware(['can:seo_tools.reports', 'throttle:seo-tools'])->name('seo.reports.prepare-pdf');
         Route::middleware('can:seo_tools.view')->group(function () use ($seo) {
-            Route::get('/seo/tools',[$seo,'index'])->name('seo.tools.index');
-            Route::get('/seo/tools/{tool}',[$seo,'form'])->name('seo.tools.form');
-            Route::post('/seo/tools/{tool}',[$seo,'run'])->middleware('throttle:seo-tools')->name('seo.tools.run');
-            Route::get('/seo/runs/{run}',[$seo,'show'])->name('seo.runs.show');
-            Route::get('/seo/runs/{run}/status',[$seo,'status'])->name('seo.runs.status');
-            Route::get('/seo/runs/{run}/export',[$seo,'export'])->name('seo.runs.export');
-            Route::delete('/seo/runs/{run}',[$seo,'destroy'])->name('seo.runs.destroy');
+            Route::get('/seo/tools', [$seo, 'index'])->name('seo.tools.index');
+            Route::get('/seo/tools/{tool}', [$seo, 'form'])->name('seo.tools.form');
+            Route::post('/seo/tools/{tool}', [$seo, 'run'])->middleware('throttle:seo-tools')->name('seo.tools.run');
+            Route::get('/seo/runs/{run}', [$seo, 'show'])->name('seo.runs.show');
+            Route::get('/seo/runs/{run}/status', [$seo, 'status'])->name('seo.runs.status');
+            Route::get('/seo/runs/{run}/export', [$seo, 'export'])->name('seo.runs.export');
+            Route::delete('/seo/runs/{run}', [$seo, 'destroy'])->name('seo.runs.destroy');
         });
         $billing = ClientSubscriptionController::class;
         Route::get('/client-plans', [$billing, 'plans'])->middleware('can:subscriptions.view')->name('client-plans.index');
