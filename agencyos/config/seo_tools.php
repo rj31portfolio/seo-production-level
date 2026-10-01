@@ -9,6 +9,8 @@ return [
         'developer' => ['seo_tools.view', 'seo_tools.audit', 'tasks.view', 'tasks.complete'],
     ],
     'tools' => [
+        'report-generator' => ['name' => 'SEO report generator', 'category' => 'Reports', 'permission' => 'seo_tools.reports', 'mode' => 'workspace', 'route' => 'seo.reports.index', 'description' => 'Generate saved report snapshots from completed runs, with HTML and queued private PDF export.'],
+        'task-generator' => ['name' => 'SEO task generator', 'category' => 'Tasks', 'permission' => 'tasks.create', 'mode' => 'workspace', 'route' => 'seo.tasks.index', 'description' => 'Create deduplicated project tasks from actionable failed checks and track manager review.'],
         'website-monitor' => ['name' => 'Website monitor & health', 'category' => 'Monitoring', 'permission' => 'seo_tools.audit', 'mode' => 'workspace', 'route' => 'seo.monitoring.index', 'description' => 'Schedule single-page checks and alerts for collected page changes and verification failures.'],
         'competitor-analyzer' => ['name' => 'Competitor page analyzer', 'category' => 'Competitors', 'permission' => 'seo_tools.competitors', 'mode' => 'comparison', 'description' => 'Compare actual titles, headings, content, schema and links from up to five supplied URLs.'],
         'content-gap' => ['name' => 'Content gap analyzer', 'category' => 'Competitors', 'permission' => 'seo_tools.competitors', 'mode' => 'comparison', 'description' => 'Compare extracted topic candidates from your page and supplied competitor pages.'],

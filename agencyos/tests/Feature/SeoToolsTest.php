@@ -6,6 +6,7 @@ use App\Jobs\ExecuteSeoTool;
 use App\Models\Agency;
 use App\Models\Role;
 use App\Models\SeoToolRun;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\Seo\SafeFetcher;
 use App\Tenancy\TenantContext;
@@ -44,7 +45,8 @@ class SeoToolsTest extends TestCase
         $this->assertSame(5, $data['metrics']['word_count']);
         $this->assertSame(2, $data['metrics']['keyword_occurrences']);
         $this->get('/seo/runs/'.$id)->assertOk()->assertSee('Manual input');
-        $this->get('/seo/runs/'.$id.'/export')->assertOk()->assertDownload('seo-run-'.$id.'.csv');
+        $csv = $this->get('/seo/runs/'.$id.'/export')->assertOk()->assertDownload('seo-run-'.$id.'.csv')->streamedContent();
+        $this->assertStringContainsString('"word_count":5', str_replace('""', '"', $csv));
         $this->post('/seo/tools/url-analyzer', ['url' => 'https://example.com/SEO_page?q=test'])->assertRedirect();
         $this->assertDatabaseCount('seo_tool_runs', 2);
     }
@@ -108,7 +110,53 @@ class SeoToolsTest extends TestCase
         $this->app->instance(SafeFetcher::class, $fetcher);
         app()->call([new ExecuteSeoTool($this->agency->id, $run->id), 'handle']);
         $this->assertDatabaseHas('seo_tool_runs', ['id' => $run->id, 'status' => 'failed', 'summary' => null]);
-        $data = json_decode(DB::table('seo_tool_results')->value('data'),true);
-        $this->assertArrayNotHasKey('score',$data);
+        $data = json_decode(DB::table('seo_tool_results')->value('data'), true);
+        $this->assertArrayNotHasKey('score', $data);
+    }
+
+    public function test_crawler_stops_when_actual_robots_callback_excludes_the_page(): void
+    {
+        Queue::fake();
+        $this->post('/seo/tools/audit', ['url' => 'https://example.com/'])->assertRedirect();
+        $id = DB::table('seo_tool_runs')->value('id');
+        $fetcher = \Mockery::mock(SafeFetcher::class);
+        $fetcher->shouldReceive('fetch')->andReturnUsing(function (string $url, ?\Closure $before = null): array {
+            if ($before) {
+                $before($url);
+                $this->fail('Excluded page should not be requested.');
+            }
+            $this->assertSame('https://example.com/robots.txt', $url);
+
+            return ['url' => $url, 'status' => 200, 'headers' => ['content-type' => 'text/plain'], 'body' => "User-agent: *\nDisallow: /", 'bytes' => 30, 'response_ms' => 1, 'redirects' => []];
+        });
+        $this->app->instance(SafeFetcher::class, $fetcher);
+        app()->call([new ExecuteSeoTool($this->agency->id, $id), 'handle']);
+        $this->assertDatabaseHas('seo_tool_runs', ['id' => $id, 'status' => 'failed']);
+        $data = json_decode(DB::table('seo_tool_results')->value('data'), true);
+        $this->assertSame('URL excluded by robots.txt.', $data['error']);
+        $this->assertArrayNotHasKey('score', $data);
+    }
+
+    public function test_sitemap_collects_bounded_real_xml_entries_and_response_checks(): void
+    {
+        Queue::fake();
+        SystemSetting::create(['key' => 'seo_engine', 'value' => ['delay_ms' => 0, 'max_pages' => 2]]);
+        $this->post('/seo/tools/sitemap', ['url' => 'https://example.com/sitemap.xml'])->assertRedirect();
+        $id = DB::table('seo_tool_runs')->value('id');
+        $fetcher = \Mockery::mock(SafeFetcher::class);
+        $fetcher->shouldReceive('fetch')->andReturnUsing(function (string $url, ?\Closure $before = null): array {
+            if ($before) {
+                $before($url);
+            }$body = $url === 'https://example.com/sitemap.xml' ? '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.com/a</loc></url><url><loc>https://example.com/b</loc></url><url><loc>https://example.com/a</loc></url></urlset>' : '';
+
+            return ['url' => $url, 'status' => str_ends_with($url, 'robots.txt') || str_ends_with($url, '/b') ? 404 : 200, 'headers' => ['content-type' => 'application/xml'], 'body' => $body, 'bytes' => strlen($body), 'response_ms' => 1, 'redirects' => []];
+        });
+        $this->app->instance(SafeFetcher::class, $fetcher);
+        app()->call([new ExecuteSeoTool($this->agency->id, $id), 'handle']);
+        $this->assertDatabaseHas('seo_tool_runs', ['id' => $id, 'status' => 'completed']);
+        $data = json_decode(DB::table('seo_tool_results')->where('kind', 'sitemap')->value('data'), true);
+        $this->assertSame(2, $data['metrics']['urls']);
+        $this->assertSame(1, $data['metrics']['duplicates']);
+        $this->assertDatabaseCount('seo_tool_results',3);
     }
 }

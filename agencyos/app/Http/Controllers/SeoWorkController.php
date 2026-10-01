@@ -37,7 +37,9 @@ class SeoWorkController extends Controller
         Gate::authorize('tasks.create');
         abort_unless($run->status === 'completed' && $run->project, 422, 'A completed project-linked tool run is required.');
         abort_unless(! $run->client->subscription || $run->client->subscription->operational(), 403, 'Client service is not operational.');
+        app(ToolAccess::class)->authorizeRun(auth()->user(), 'task-generator', $run->project);
         $created = DB::transaction(function () use ($run) {
+            app(ToolAccess::class)->consume('task-generator');
             $created = 0;
             foreach ($run->results()->lazyById(100) as $result) {
                 foreach ($result->data['checks'] ?? [] as $check) {
@@ -85,12 +87,14 @@ class SeoWorkController extends Controller
     public function generateReport(SeoToolRun $run): RedirectResponse
     {
         Gate::authorize('view', $run);
+        app(ToolAccess::class)->authorizeRun(auth()->user(), 'report-generator', $run->project);
         abort_unless($run->status === 'completed', 422, 'Use a completed tool run.');
         $rows = [];
         foreach ($run->results()->lazyById(100) as $result) {
             $rows[] = ['url' => $result->url, 'kind' => $result->kind, 'metrics' => $result->data['metrics'] ?? [], 'checks' => $result->data['checks'] ?? [], 'score' => $result->data['score'] ?? null, 'error' => $result->data['error'] ?? null, 'recommendations' => $result->data['recommendations'] ?? [], 'keywords' => $result->data['keywords'] ?? [], 'notes' => $result->data['notes'] ?? []];
         }
         $report = DB::transaction(function () use ($run, $rows) {
+            app(ToolAccess::class)->consume('report-generator');
             $report = Report::create(['user_id' => auth()->id(), 'project_id' => $run->project_id, 'seo_tool_run_id' => $run->id, 'title' => ToolRegistry::get($run->tool)['name'].' report', 'snapshot' => ['agency' => app(TenantContext::class)->agency()->name, 'project' => $run->project?->name, 'source' => $run->source, 'collected_at' => $run->created_at->toIso8601String(), 'summary' => $run->summary, 'rows' => $rows, 'missing_data' => ['Rankings/search volumes/backlink authority and traffic are unavailable unless separately supplied.']]]);
             Activity::record('seo_report.created', $report);
 
@@ -139,6 +143,6 @@ class SeoWorkController extends Controller
         Gate::authorize('view', $report->run);
         abort_unless($report->pdf_status === 'completed' && $report->pdf_path && Storage::disk('local')->exists($report->pdf_path), 409, 'PDF is not ready. Queue generation from the report page.');
 
-        return response()->download(Storage::disk('local')->path($report->pdf_path),'seo-report-'.$report->id.'.pdf',['Content-Type' => 'application/pdf']);
+        return response()->download(Storage::disk('local')->path($report->pdf_path), 'seo-report-'.$report->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 }

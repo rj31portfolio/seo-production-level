@@ -7,7 +7,9 @@ use App\Models\Project;
 use App\Models\RankingEntry;
 use App\Models\SeoToolRun;
 use App\Services\Activity;
+use App\Services\Seo\TableFile;
 use App\Services\Seo\ToolAccess;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,38 +113,27 @@ class RankingController extends Controller
 
     public function import(Request $request, ToolAccess $access): RedirectResponse
     {
-        $data = $request->validate(['project_id' => 'required|integer', 'file' => 'required|file|extensions:csv|max:256']);
+        $data = $request->validate(['project_id' => 'required|integer', 'file' => 'required|file|extensions:csv,xlsx|max:256']);
         $project = Project::findOrFail($data['project_id']);
         $access->authorizeRun($request->user(), 'rank-tracker', $project);
-        $handle = fopen($request->file('file')->getRealPath(), 'r');
         $rows = [];
-        try {
-            $header = fgetcsv($handle, 65536, ',', '"', '');
-            if (! $header || array_diff(['keyword', 'observed_on', 'position', 'country', 'location', 'device', 'search_engine'], $header)) {
-                throw ValidationException::withMessages(['file' => 'Required CSV headers: keyword, observed_on, position, country, location, device, search_engine.']);
-            }
-            while (($cells = fgetcsv($handle, 65536, ',', '"', '')) !== false) {
-                if (count($rows) >= 500 || count($cells) !== count($header)) {
-                    throw ValidationException::withMessages(['file' => 'Import at most 500 complete rows.']);
-                }$row = array_combine($header, $cells);
-                $row['position'] = $row['position'] === '' ? null : $row['position'];
-                $row['location'] = $row['location'] ?: null;
-                $validator = validator($row, $this->rules() + ['keyword' => 'required|string|max:200']);
-                if ($validator->fails()) {
-                    throw ValidationException::withMessages(['file' => 'Invalid CSV row '.(count($rows) + 2).': '.$validator->errors()->first()]);
-                }$rows[] = $validator->validated();
-            }
-        } finally {
-            fclose($handle);
+        foreach (app(TableFile::class)->read($request->file('file'), ['keyword', 'observed_on', 'position', 'country', 'location', 'device', 'search_engine'], ['keyword', 'observed_on', 'position', 'country', 'location', 'device', 'search_engine', 'evidence']) as $row) {
+            $row['position'] = $row['position'] === '' ? null : $row['position'];
+            $row['location'] = $row['location'] ?: null;
+            $validator = validator($row, $this->rules() + ['keyword' => 'required|string|max:200']);
+            if ($validator->fails()) {
+                throw ValidationException::withMessages(['file' => 'Invalid CSV row '.(count($rows) + 2).': '.$validator->errors()->first()]);
+            }$rows[] = $validator->validated();
         }
         if (! $rows) {
             throw ValidationException::withMessages(['file' => 'CSV contains no observations.']);
         }
-        DB::transaction(function () use ($rows, $project, $access): void {
+        $source = strtoupper($request->file('file')->getClientOriginalExtension()).' import';
+        DB::transaction(function () use ($rows, $project, $access, $source): void {
             $access->consume('rank-tracker');
             foreach ($rows as $row) {
                 $keyword = Keyword::firstOrCreate(['project_id' => $project->id, 'keyword' => mb_strtolower(trim($row['keyword']))]);
-                $this->observation($keyword, $row, 'CSV import');
+                $this->observation($keyword, $row, $source);
             }
         });
 
@@ -153,13 +144,13 @@ class RankingController extends Controller
     {
         $projects = $this->projects($request)->select('projects.id');
 
-        return response()->streamDownload(function () use ($projects): void {
+        return response()->streamDownload(app(TenantContext::class)->wrap(function () use ($projects): void {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['keyword', 'observed_on', 'position', 'country', 'location', 'device', 'search_engine', 'source'], ',', '"', '');
             foreach (RankingEntry::whereHas('keyword', fn ($q) => $q->whereIn('project_id', $projects))->with('keyword')->lazyById(100) as $entry) {
                 $cells = [$entry->keyword->keyword, $entry->observed_on->format('Y-m-d'), $entry->position, $entry->country, $entry->location, $entry->device, $entry->search_engine, $entry->source];
-                fputcsv($file,array_map(fn ($value) => preg_match('/^[=+\-@\t\r]/',(string) $value) ? "'".$value : $value,$cells),',','"','');
+                fputcsv($file, array_map(fn ($value) => preg_match('/^[=+\-@\t\r]/', (string) $value) ? "'".$value : $value, $cells), ',', '"', '');
             }fclose($file);
-        }, 'ranking-observations.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }), 'ranking-observations.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

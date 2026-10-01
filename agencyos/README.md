@@ -16,6 +16,12 @@ Implemented functionality uses real database records. No sample accounts, fake S
 - Agency team creation, role changes and access revocation.
 - Independent client SEO plans and subscriptions, expiry/progress display, grace periods, renewal, extension, plan changes, suspension and cancellation.
 - Real invoices, partial/manual payments, outstanding balances, renewal history, deduplicated in-app and queued email reminders.
+- Integrated SEO tool hub with 43 tools/workspaces, queued crawler/technical analyses, bounded keyword processing and CSV/XLSX imports/exports.
+- Manual/imported ranking history, backlink records and queued permitted-source verification, competitor comparisons and saved snapshot change detection.
+- Audit findings to deduplicated tasks, manager review, report snapshots and queued private PDF generation, scheduled monitoring alerts.
+- Optional encrypted DeepSeek configuration and queued recommendations, usage limits, configurable scoring/crawler settings and separate platform tool plans.
+
+See [SEO_TOOLS.md](SEO_TOOLS.md) for the catalog and tool guides. The remaining 50-capability requirements, client portal, aggregate reports, paid SaaS lifecycle and production validation are tracked in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 ## Local installation
 

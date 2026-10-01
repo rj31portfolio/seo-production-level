@@ -14,7 +14,7 @@ class DeepSeekProvider implements AIProviderInterface
             throw new \RuntimeException('AI provider URL is not permitted.');
         }
 
-return $base;
+        return $base;
     }
 
     public function generate(array $settings, string $apiKey, array $messages): array

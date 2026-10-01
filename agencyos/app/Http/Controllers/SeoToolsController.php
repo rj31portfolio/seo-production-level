@@ -11,12 +11,17 @@ use App\Services\Seo\PublicUrl;
 use App\Services\Seo\ToolAccess;
 use App\Services\Seo\ToolRegistry;
 use App\Services\Seo\ToolRunner;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SeoToolsController extends Controller
@@ -27,8 +32,13 @@ class SeoToolsController extends Controller
         $tools = array_filter(ToolRegistry::all(), fn ($t) => $request->user()->hasPermission($t['permission']) && (! $request->q || str_contains(mb_strtolower($t['name']), mb_strtolower($request->q))) && (! $request->category || $t['category'] === $request->category));
         $runs = $access->visibleRuns($request->user())->with('project')->when($request->status, fn ($q, $status) => $q->where('status', $status))->latest()->paginate(15)->withQueryString();
         $usedToday = $access->visibleRuns($request->user())->whereDate('created_at', now()->toDateString())->count();
+        $plan = $access->plan();
+        $usage = DB::table('seo_tool_usage')->where('agency_id', app(TenantContext::class)->id())->where('period', now()->format('Y-m'))->get()->keyBy('tool');
+        $limits = DB::table('tool_limits')->where('agency_id', app(TenantContext::class)->id())->get()->keyBy('tool');
+        $queued = $access->visibleRuns($request->user())->whereIn('status', ['queued', 'running'])->count();
+        $failed = $access->visibleRuns($request->user())->where('status', 'failed')->count();
 
-        return view('seo.hub', compact('tools', 'runs', 'usedToday'));
+        return view('seo.hub', compact('tools', 'runs', 'usedToday', 'plan', 'usage', 'limits', 'queued', 'failed'));
     }
 
     public function form(Request $request, string $tool): View|RedirectResponse
@@ -134,21 +144,50 @@ class SeoToolsController extends Controller
     {
         Gate::authorize('view', $run);
 
-        return response()->streamDownload(function () use ($run) {
+        return response()->streamDownload(app(TenantContext::class)->wrap(function () use ($run) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['URL', 'Source', 'Kind', 'Result'], ',', '"', '');
             foreach ($run->results()->lazyById(100) as $result) {
                 $cells = [$result->url ?? '', $run->source, $result->kind, json_encode($result->data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
                 fputcsv($file, array_map(fn ($v) => preg_match('/^[=+\-@\t\r]/', $v) ? "'".$v : $v, $cells), ',', '"', '');
             } fclose($file);
-        }, 'seo-run-'.$run->id.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }), 'seo-run-'.$run->id.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function xlsx(SeoToolRun $run): StreamedResponse
+    {
+        Gate::authorize('view', $run);
+
+        return response()->streamDownload(app(TenantContext::class)->wrap(function () use ($run): void {
+            $book = new Spreadsheet;
+            $sheet = $book->getActiveSheet();
+            $sheet->setTitle('Collected results');
+            $row = 1;
+            $write = function (array $cells) use ($sheet, &$row): void {
+                foreach (array_values($cells) as $column => $value) {
+                    $sheet->setCellValueExplicit([$column + 1, $row], (string) $value, DataType::TYPE_STRING);
+                }$row++;
+            };
+            $write(['URL', 'Source', 'Kind', 'Field', 'Value (JSON segments for large fields)']);
+            foreach ($run->results()->lazyById(100) as $result) {
+                foreach ($result->data as $field => $value) {
+                    $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $parts = max(1, (int) ceil(mb_strlen($json) / 30000));
+                    for ($i = 0; $i < $parts; $i++) {
+                        $write([$result->url ?? '', $run->source, $result->kind, $field.($parts > 1 ? ' [segment '.($i + 1).'/'.$parts.']' : ''), mb_substr($json, $i * 30000, 30000)]);
+                    }
+                }
+            }
+            (new Xlsx($book))->save('php://output');
+            $book->disconnectWorksheets();
+        }), 'seo-run-'.$run->id.'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     public function destroy(SeoToolRun $run): RedirectResponse
     {
-        Gate::authorize('delete',$run);
+        Gate::authorize('delete', $run);
         $run->delete();
-        Activity::record('seo_tool.archived',$run);
+        Activity::record('seo_tool.archived', $run);
 
         return redirect()->route('seo.tools.index')->with('success','Tool run archived.');
     }

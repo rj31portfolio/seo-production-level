@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SeoToolResult;
+use App\Models\SeoToolRun;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class SeoToolResultFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'seo_tool_run_id' => SeoToolRun::factory(), 'kind' => 'analysis', 'data' => [],
         ];
     }
 }

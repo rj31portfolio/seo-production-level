@@ -14,7 +14,9 @@ class LocalAnalyzer
 
     public function content(string $content, string $keyword = ''): array
     {
-        $text = html_entity_decode(strip_tags(preg_replace('~<(script|style)\b[^>]*>.*?</\1>~is', '', $content)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $clean = preg_replace('~<(script|style)\b[^>]*>.*?</\1>~is', '', $content);
+        $clean = preg_replace('~</?(?:p|div|h[1-6]|li|ul|ol|section|article|br|table|tr|td)\b[^>]*>~i', ' ', $clean);
+        $text = html_entity_decode(strip_tags($clean), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         preg_match_all('/[\p{L}\p{N}]+(?:[’\x27-][\p{L}\p{N}]+)*/u', $text, $words);
         $paragraphs = preg_split('/\n\s*\n/u', trim($text), -1, PREG_SPLIT_NO_EMPTY);
         preg_match_all('~<h([1-6])\b[^>]*>(.*?)</h\1>~is', $content, $headings, PREG_SET_ORDER);

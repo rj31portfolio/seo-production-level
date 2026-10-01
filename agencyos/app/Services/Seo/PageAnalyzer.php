@@ -46,6 +46,11 @@ class PageAnalyzer
 
             return '';
         };
+        $metadata = [];
+        foreach (['description', 'robots', 'og:title', 'og:description', 'og:image', 'twitter:card', 'twitter:title'] as $name) {
+            $metadata[$name] = $meta($name);
+        }
+        $meta = fn (string $name): string => $metadata[$name] ?? '';
         $headings = [];
         $last = 0;
         $hierarchy = true;
@@ -106,7 +111,10 @@ class PageAnalyzer
         $mixed = str_starts_with($url, 'https://') && $xpath->query('//*[@src and starts-with(@src,"http:")]|//link[@href and starts-with(@href,"http:")]')->length > 0;
         foreach ($xpath->query('//head|//script|//style|//nav|//noscript') as $node) {
             $node->parentNode?->removeChild($node);
-        }$visible = trim($dom->textContent);
+        }$textParts = [];
+        foreach ($xpath->query('//body//text()') as $node) {
+            $textParts[] = $node->textContent;
+        }$visible = trim(preg_replace('/\s+/u', ' ', implode(' ', $textParts)));
         $content = $this->content->content($visible);
         $h1 = array_filter($headings, fn ($h) => $h['level'] === 1);
         $robots = strtolower($meta('robots').' '.($response['headers']['x-robots-tag'] ?? ''));
@@ -163,12 +171,12 @@ class PageAnalyzer
             $applicable = array_filter($checks, fn ($c) => ($c['category'] ?? '') === $category && $c['severity'] !== 'information');
             if (! $applicable) {
                 continue;
-            }$score = round(count(array_filter($applicable,fn ($c) => $c['passed'])) / count($applicable) * 100,1);
+            }$score = round(count(array_filter($applicable, fn ($c) => $c['passed'])) / count($applicable) * 100, 1);
             $categories[$category] = $score;
             $weighted += $score * $weight;
             $totalWeight += $weight;
         }
 
-        return ['overall' => $totalWeight ? round($weighted / $totalWeight,1) : null, 'categories' => $categories, 'weights' => $weights, 'method' => 'Weighted category pass rates; informational checks excluded.'];
+        return ['overall' => $totalWeight ? round($weighted / $totalWeight, 1) : null, 'categories' => $categories, 'weights' => $weights, 'method' => 'Weighted category pass rates; informational checks excluded.'];
     }
 }

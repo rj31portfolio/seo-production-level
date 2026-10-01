@@ -1,0 +1,49 @@
+import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+
+test('SEO tools save actual input, export reports and work on mobile', async ({ page }) => {
+    await page.goto('/register');
+    await page.getByLabel('Your name', { exact: true }).fill('SEO Browser Owner');
+    await page.getByLabel('Agency name', { exact: true }).fill(`SEO Browser Agency ${Date.now()}`);
+    await page.getByLabel('Email address', { exact: true }).fill(`seo-${Date.now()}@example.com`);
+    await page.getByLabel('Password', { exact: true }).fill('BrowserTestPassword123');
+    await page.getByLabel('Confirm password', { exact: true }).fill('BrowserTestPassword123');
+    await page.getByRole('button', { name: 'Create workspace' }).click();
+    await page.goto('/seo/tools/content-analyzer');
+    await page.getByLabel('Content to analyze').fill('SEO tools help. SEO matters.');
+    await page.getByLabel('Target keyword').fill('SEO');
+    await page.getByRole('button', { name: 'Run tool', exact: true }).click();
+    await expect(page.getByText('Word Count', { exact: true })).toBeVisible();
+    await expect(page.getByText('Keyword Occurrences', { exact: true })).toBeVisible();
+    const csv = await page.request.get(await page.getByRole('link', { name: 'Export CSV' }).getAttribute('href'));
+    expect(csv.status()).toBe(200);
+    expect(csv.headers()['content-disposition']).toContain('.csv');
+    expect(await csv.text()).toContain('word_count');
+    await page.getByRole('button', { name: 'Generate report', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Content analyzer report', level: 1 }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Prepare PDF' }).click();
+    execFileSync(path.resolve('../.tools/php/php.exe'), ['artisan', 'queue:work', '--queue=seo', '--once', '--tries=1', '--timeout=180', '--no-interaction'], { cwd: process.cwd(), env: { ...process.env, APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: path.resolve('storage/framework/testing/seo-browser.sqlite') } });
+    await page.reload();
+    const pdf = await page.request.get(await page.getByRole('link', { name: 'Download PDF' }).getAttribute('href'));
+    expect(pdf.status()).toBe(200);
+    expect(pdf.headers()['content-type']).toBe('application/pdf');
+    expect((await pdf.body()).subarray(0,5).toString()).toBe('%PDF-');
+    await page.goto('/seo/tools/keyword-clustering');
+    await page.getByLabel('Keywords or seeds').fill('how to repair roofs\nbuy roof tiles');
+    await page.getByRole('button', { name: 'Run tool', exact: true }).click();
+    await expect(page.getByText('informational', { exact: true })).toBeVisible();
+    await expect(page.getByText('transactional', { exact: true })).toBeVisible();
+    await page.goto('/seo/tools/ai-assistant');
+    await page.getByLabel('Request and known facts').fill('Suggest a roof repair outline');
+    await page.getByRole('button', { name: 'Run tool', exact: true }).click();
+    await expect(page.getByText('AI is disabled. Normal SEO tools remain available.', { exact: true })).toBeVisible();
+    for (const url of ['/seo/tools', '/seo/tasks', '/seo/reports', '/seo/rankings', '/seo/backlinks', '/seo/monitoring', '/seo/tools/competitor-analyzer', '/seo/tools/seo-changes']) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const response = await page.goto(url);
+        expect(response.status()).toBe(200);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.goto('/seo/tools');
+    await page.screenshot({ path: 'test-results/seo-hub-mobile.png', fullPage: true });
+});

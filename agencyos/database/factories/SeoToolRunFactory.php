@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SeoToolRun;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class SeoToolRunFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(), 'tool' => 'page-score', 'status' => 'queued', 'source' => 'Internal crawler', 'input' => ['url' => 'https://example.com/'],
         ];
     }
 }

@@ -7,12 +7,39 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class KeywordToolsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_csv_and_xlsx_keywords_are_imported_without_executing_formulas(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('keywords.csv', "keyword\nhow to repair roofs\nbuy roof tiles\n");
+        $this->post('/seo/tools/keyword-clustering', ['file' => $file])->assertRedirect();
+        $this->assertDatabaseHas('seo_tool_runs', ['source' => 'File import']);
+        $book = new Spreadsheet;
+        $book->getActiveSheet()->setCellValueExplicit('A1', 'keyword', DataType::TYPE_STRING);
+        $book->getActiveSheet()->setCellValueExplicit('A2', 'roof repair', DataType::TYPE_STRING);
+        $path = tempnam(sys_get_temp_dir(), 'keywords');
+        (new Xlsx($book))->save($path);
+        try {
+            $upload = new UploadedFile($path, 'keywords.xlsx', null, null, true);
+            $this->post('/seo/tools/search-intent', ['file' => $upload])->assertRedirect();
+            $id = DB::table('seo_tool_runs')->max('id');
+            $response = $this->get('/seo/runs/'.$id.'/xlsx')->assertOk()->assertDownload('seo-run-'.$id.'.xlsx');
+            $bytes = $response->streamedContent();
+            $this->assertStringStartsWith('PK', $bytes);
+        } finally {
+            unlink($path);
+            $book->disconnectWorksheets();
+        }
+    }
 
     protected function setUp(): void
     {

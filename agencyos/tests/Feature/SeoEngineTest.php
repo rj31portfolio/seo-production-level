@@ -15,7 +15,7 @@ class SeoEngineTest extends TestCase
 
     public function test_public_url_validation_blocks_internal_and_ambiguous_destinations(): void
     {
-        foreach (['http://127.0.0.1', 'http://10.0.0.1', 'http://169.254.169.254/latest/', 'http://[::1]', 'http://[::ffff:127.0.0.1]', 'http://2130706433', 'http://example.com:22', 'https://user:password@example.com', 'file:///etc/passwd'] as $url) {
+        foreach (['http://127.0.0.1', 'http://10.0.0.1', 'http://169.254.169.254/latest/', 'http://[::1]', 'http://[::ffff:127.0.0.1]', 'http://[64:ff9b::7f00:1]', 'http://2130706433', 'http://example.com:22', 'https://user:password@example.com', 'file:///etc/passwd'] as $url) {
             try {
                 app(PublicUrl::class)->resolve($url);
                 $this->fail('Unsafe destination accepted: '.$url);
@@ -57,6 +57,8 @@ class SeoEngineTest extends TestCase
         $analyzer = app(PageAnalyzer::class);
         $data = $analyzer->analyze(['url' => 'https://example.com/page', 'body' => $html, 'status' => 200, 'headers' => ['content-type' => 'text/html'], 'response_ms' => 100, 'bytes' => strlen($html), 'redirects' => []]);
         $this->assertSame('Actual SEO page title', $data['title']);
+        $this->assertSame('Actual description', $data['description']);
+        $this->assertSame(7, $data['metrics']['word_count']);
         $this->assertSame(1, $data['metrics']['missing_alt']);
         $this->assertSame(['https://example.com/page'], $data['canonicals']);
         $checks = array_column($data['checks'], null, 'rule');
@@ -67,6 +69,6 @@ class SeoEngineTest extends TestCase
         $this->assertGreaterThan(0, $score['overall']);
         $this->assertLessThan(100, $score['overall']);
         $passed = array_map(fn ($c) => array_replace($c, ['passed' => true]), $data['checks']);
-        $this->assertSame(100.0,$analyzer->score($passed)['overall']);
+        $this->assertSame(100.0, $analyzer->score($passed)['overall']);
     }
 }

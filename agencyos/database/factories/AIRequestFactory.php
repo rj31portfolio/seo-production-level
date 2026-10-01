@@ -3,6 +3,8 @@
 namespace Database\Factories;
 
 use App\Models\AIRequest;
+use App\Models\SeoToolRun;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +20,7 @@ class AIRequestFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(), 'seo_tool_run_id' => SeoToolRun::factory(), 'feature' => 'ai-assistant', 'provider' => 'deepseek', 'model' => 'deepseek-flash', 'status' => 'queued',
         ];
     }
 }

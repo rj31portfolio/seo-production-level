@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SeoMonitoring;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class SeoMonitoringFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(), 'interval_minutes' => 1440, 'enabled' => true, 'next_due_at' => now(),
         ];
     }
 }

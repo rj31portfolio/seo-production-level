@@ -34,7 +34,7 @@ class ComparisonToolsTest extends TestCase
                 $ids[] = $run->id;
             }
 
-return $ids;
+            return $ids;
         });
         $this->post('/seo/tools/seo-changes', ['before_run_id' => $ids[0], 'after_run_id' => $ids[1]])->assertRedirect();
         $id = DB::table('seo_tool_runs')->max('id');

@@ -52,7 +52,9 @@ class RankingTest extends TestCase
         }
         $this->post('/seo/rankings/'.$id, ['country' => 'IN', 'location' => '', 'device' => 'mobile', 'search_engine' => 'google', 'observed_on' => now()->toDateString(), 'position' => 2])->assertRedirect();
         $this->get('/seo/rankings/'.$id)->assertOk()->assertViewHas('current', 9)->assertViewHas('previous', 15)->assertViewHas('change', 6)->assertViewHas('best', 9)->assertViewHas('worst', 15);
-        $this->get('/seo/rankings/export')->assertDownload('ranking-observations.csv');
+        $csv = $this->get('/seo/rankings/export')->assertDownload('ranking-observations.csv')->streamedContent();
+        $this->assertStringContainsString('Manual', $csv);
+        $this->assertStringContainsString('roof repair', $csv);
         $other = Agency::create(['name' => 'Other']);
         $other->users()->attach($this->user, ['role_id' => Role::where('name', 'agency_owner')->value('id')]);
         $this->withSession(['agency_id' => $other->id]);

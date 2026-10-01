@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SeoTask;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class SeoTaskFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'created_by' => User::factory(), 'title' => 'Review collected finding', 'description' => 'Review the supplied test finding.', 'category' => 'technical', 'priority' => 'medium', 'status' => 'pending', 'due_at' => now()->addDays(2), 'deduplication_key' => hash('sha256', fake()->uuid()),
         ];
     }
 }

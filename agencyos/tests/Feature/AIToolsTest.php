@@ -92,6 +92,6 @@ class AIToolsTest extends TestCase
         $this->assertStringNotContainsString('private-test-key', json_encode(SystemSetting::find('ai_key')->value));
         $this->get('/super-admin/ai-settings')->assertOk()->assertDontSee('private-test-key');
         $settings['base_url'] = 'http://127.0.0.1';
-        $this->patch('/super-admin/ai-settings',$settings)->assertSessionHasErrors('base_url')->assertSessionMissing('_old_input.api_key');
+        $this->patch('/super-admin/ai-settings', $settings)->assertSessionHasErrors('base_url')->assertSessionMissing('_old_input.api_key');
     }
 }

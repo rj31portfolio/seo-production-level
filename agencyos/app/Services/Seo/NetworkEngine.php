@@ -222,7 +222,7 @@ class NetworkEngine
                         $files[] = $target;
                     }
 
-continue;
+                    continue;
                 }
                 if (isset($entries[$target])) {
                     $duplicates++;
@@ -247,6 +247,6 @@ continue;
             }
             $run->results()->create(['url' => $url, 'kind' => 'sitemap_url', 'data' => $data]);
         }
-        $run->update(['summary' => ['sitemap_files' => count($seen), 'urls' => count($entries), 'duplicate_urls' => $duplicates, 'checked_urls' => min(count($entries),$settings['max_pages'])]]);
+        $run->update(['summary' => ['sitemap_files' => count($seen), 'urls' => count($entries), 'duplicate_urls' => $duplicates, 'checked_urls' => min(count($entries), $settings['max_pages'])]]);
     }
 }

@@ -18,7 +18,7 @@ class KeywordFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'keyword' => fake()->unique()->words(3, true), 'target_url' => null,
         ];
     }
 }

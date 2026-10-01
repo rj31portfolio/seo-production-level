@@ -1,9 +1,16 @@
 # Queue
 
-Database is the default backend; Redis is optional. Laravel's standard job/failed-job migrations are included. Current queued workloads are client-expiry emails. Laravel handles authentication reset mail through its password-broker notification flow.
+Database is the default backend. Client expiry mail uses `default`; crawls, AI, backlink verification and report PDF generation use `seo`. The monitor command is scheduled every minute. See [CRAWLER.md](CRAWLER.md) for request safeguards and detailed limits.
 
-Run `php artisan queue:work --queue=default --tries=3 --timeout=60` under a process manager for a VPS. Restart workers with `php artisan queue:restart` after deployments. On constrained hosting, a periodic bounded `php artisan queue:work --stop-when-empty --max-time=50` command is an alternative when the hosting provider permits it; avoid overlapping workers without operational planning.
+```powershell
+..\.tools\php\php.exe artisan queue:work --queue=seo,default --sleep=3 --tries=1 --timeout=1800 --memory=384
+..\.tools\php\php.exe artisan schedule:work
+```
 
-Inspect failed jobs with `php artisan queue:failed`; review the private error logs before deliberately retrying a job. Do not assume a healthy queue merely because its table exists. Queue monitoring/heartbeat/dashboard is not implemented yet.
+Production needs supervised workers and once-per-minute `artisan schedule:run`. Database retry-after is 1860 seconds and must exceed the longest job timeout. Redis/custom backends must configure equivalent visibility/retry timing. A default-only worker will leave SEO jobs pending. A short hosting worker timeout is unsuitable for a large crawl.
 
-Future tenant-aware jobs must carry agency ID and enter trusted tenant context before retrieving records. Jobs must handle retries/idempotence explicitly. Crawler/import/export/report/AI queues remain unimplemented.
+Tenant-aware jobs carry agency IDs, retrieve records in that context, reauthorize the requesting user and avoid replaying completed jobs. There are no automatic retries of billed AI requests. Inspect `artisan queue:failed` and private logs before intentionally retrying failed jobs. Failure callbacks mark pending runs/PDF/verification records failed when possible.
+
+After deployments, use `artisan queue:restart` and let the process supervisor restart workers. The hidden local development processes are not supervised services and require manual restart after exiting or rebooting. Their logs are under `storage/logs/seo-worker-*` and `storage/logs/seo-scheduler-*`.
+
+Windows does not provide Linux `pcntl` timeout semantics. Production job-kill/recovery behavior, durable outboxes, queue dashboards/heartbeats, crash-after-partial-persistence reconciliation, retention and large imports still need further implementation/validation.

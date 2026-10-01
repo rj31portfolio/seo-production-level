@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Backlink;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class BacklinkFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(), 'source_url' => 'https://source.example.com/', 'target_url' => 'https://example.com/', 'source' => 'Manual', 'status' => 'unverified', 'url_pair_hash' => fn (array $attributes) => hash('sha256', $attributes['source_url'].'|'.$attributes['target_url']),
         ];
     }
 }

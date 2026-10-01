@@ -13,6 +13,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -51,6 +52,8 @@ class GenerateReportPdf implements ShouldQueue
                 Gate::authorize('seo_tools.reports');
                 Gate::authorize('view', $report->run);
                 $options = new Options;
+                Storage::disk('local')->makeDirectory('report-temp');
+                $options->setTempDir(Storage::disk('local')->path('report-temp'));
                 $options->set('isRemoteEnabled', false);
                 $options->set('isJavascriptEnabled', false);
                 $options->set('isPhpEnabled', false);
@@ -66,7 +69,8 @@ class GenerateReportPdf implements ShouldQueue
                 if ($old) {
                     Storage::disk('local')->delete($old);
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                Log::warning('PDF generation failed', ['report_id' => $report->id, 'exception_type' => $e::class, 'message' => mb_substr($e->getMessage(), 0, 300)]);
                 $report->update(['pdf_status' => 'failed', 'pdf_error' => 'PDF generation failed. Review access and private worker logs, then retry.']);
             } finally {
                 $previous ? Auth::setUser($previous) : Auth::forgetUser();

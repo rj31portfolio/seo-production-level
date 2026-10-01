@@ -18,7 +18,9 @@ class PublicUrl
             throw new RuntimeException('Only public HTTP/HTTPS URLs on standard ports without credentials are accepted.');
         }
 
-        return (string) (new Uri($url))->withScheme(strtolower($p['scheme']))->withHost(strtolower($p['host']))->withFragment('');
+        $uri = (new Uri($url))->withScheme(strtolower($p['scheme']))->withHost(strtolower($p['host']))->withFragment('');
+
+        return (string) ($uri->getPath() === '' ? $uri->withPath('/') : $uri);
     }
 
     public function resolve(string $url): array
@@ -38,6 +40,9 @@ class PublicUrl
             throw new RuntimeException('The public hostname could not be resolved.');
         }
         foreach ($ips as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && (ord(inet_pton($ip)[0]) & 0xE0) !== 0x20) {
+                throw new RuntimeException('IPv6 translation, mapped and non-global destinations are blocked.');
+            }
             if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) || str_starts_with(strtolower($ip), '2002:') || str_starts_with(strtolower($ip), '2001:0:')) {
                 throw new RuntimeException('Private, reserved, and local network destinations are blocked.');
             }

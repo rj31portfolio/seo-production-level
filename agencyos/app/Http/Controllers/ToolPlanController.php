@@ -39,6 +39,6 @@ class ToolPlanController extends Controller
             DB::table('agency_tool_plan')->updateOrInsert(['agency_id' => $data['agency_id']], ['saas_tool_plan_id' => $data['saas_tool_plan_id'], 'updated_at' => now(), 'created_at' => now()]);
         }
 
-return back()->with('success','Agency tool plan assignment updated.');
+        return back()->with('success', 'Agency tool plan assignment updated.');
     }
 }

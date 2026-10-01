@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/seo/runs/{run}', [$seo, 'show'])->name('seo.runs.show');
             Route::get('/seo/runs/{run}/status', [$seo, 'status'])->name('seo.runs.status');
             Route::get('/seo/runs/{run}/export', [$seo, 'export'])->name('seo.runs.export');
+            Route::get('/seo/runs/{run}/xlsx', [$seo, 'xlsx'])->middleware('throttle:seo-tools')->name('seo.runs.xlsx');
             Route::delete('/seo/runs/{run}', [$seo, 'destroy'])->name('seo.runs.destroy');
         });
         $billing = ClientSubscriptionController::class;

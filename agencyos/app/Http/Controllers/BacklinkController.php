@@ -7,7 +7,9 @@ use App\Models\Backlink;
 use App\Models\Project;
 use App\Services\Activity;
 use App\Services\Seo\PublicUrl;
+use App\Services\Seo\TableFile;
 use App\Services\Seo\ToolAccess;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,34 +71,24 @@ class BacklinkController extends Controller
 
     public function import(Request $request, ToolAccess $access): RedirectResponse
     {
-        $data = $request->validate(['project_id' => 'required|integer', 'file' => 'required|file|extensions:csv|max:256']);
+        $data = $request->validate(['project_id' => 'required|integer', 'file' => 'required|file|extensions:csv,xlsx|max:256']);
         $project = Project::findOrFail($data['project_id']);
         $access->authorizeRun($request->user(), 'backlink-manager', $project);
         $rows = [];
-        $handle = fopen($request->file('file')->getRealPath(), 'r');
-        try {
-            $header = fgetcsv($handle, 65536, ',', '"', '');
-            if (! $header || array_diff(['source_url', 'target_url'], $header)) {
-                throw ValidationException::withMessages(['file' => 'CSV requires source_url and target_url headers; anchor and campaign are optional.']);
-            }
-            while (($cells = fgetcsv($handle, 65536, ',', '"', '')) !== false) {
-                if (count($rows) >= 500 || count($cells) !== count($header)) {
-                    throw ValidationException::withMessages(['file' => 'Import at most 500 complete rows.']);
-                }$validator = validator(array_combine($header, $cells), $this->rules());
-                if ($validator->fails()) {
-                    throw ValidationException::withMessages(['file' => 'Invalid backlink row '.(count($rows) + 2).': '.$validator->errors()->first()]);
-                }$rows[] = $validator->validated();
-            }
-        } finally {
-            fclose($handle);
+        foreach (app(TableFile::class)->read($request->file('file'), ['source_url', 'target_url'], ['source_url', 'target_url', 'anchor', 'campaign']) as $row) {
+            $validator = validator($row, $this->rules());
+            if ($validator->fails()) {
+                throw ValidationException::withMessages(['file' => 'Invalid backlink row '.(count($rows) + 2).': '.$validator->errors()->first()]);
+            }$rows[] = $validator->validated();
         }
         if (! $rows) {
             throw ValidationException::withMessages(['file' => 'No backlinks supplied.']);
         }
-        DB::transaction(function () use ($rows, $project, $access): void {
+        $source = strtoupper($request->file('file')->getClientOriginalExtension()).' import';
+        DB::transaction(function () use ($rows, $project, $access, $source): void {
             $access->consume('backlink-manager');
             foreach ($rows as $row) {
-                $this->save($project, $row, 'CSV import');
+                $this->save($project, $row, $source);
             }
         });
 
@@ -133,13 +125,13 @@ class BacklinkController extends Controller
     {
         $ids = $this->projects($request)->select('projects.id');
 
-        return response()->streamDownload(function () use ($ids): void {
+        return response()->streamDownload(app(TenantContext::class)->wrap(function () use ($ids): void {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['source_url', 'target_url', 'anchor', 'campaign', 'status', 'source'], ',', '"', '');
             foreach (Backlink::whereIn('project_id', $ids)->lazyById(100) as $backlink) {
                 $cells = $backlink->only(['source_url', 'target_url', 'anchor', 'campaign', 'status', 'source']);
-                fputcsv($file,array_map(fn ($v) => preg_match('/^[=+\-@\t\r]/',(string) $v) ? "'".$v : $v,$cells),',','"','');
+                fputcsv($file, array_map(fn ($v) => preg_match('/^[=+\-@\t\r]/', (string) $v) ? "'".$v : $v, $cells), ',', '"', '');
             }fclose($file);
-        }, 'backlinks.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }), 'backlinks.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

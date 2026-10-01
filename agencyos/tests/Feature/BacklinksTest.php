@@ -63,7 +63,9 @@ class BacklinksTest extends TestCase
         app()->call([new VerifyBacklink($this->agency->id, $verificationId), 'handle']);
         $this->assertDatabaseHas('backlinks', ['id' => $id, 'status' => 'found']);
         $this->get('/seo/backlinks/'.$id)->assertOk()->assertSee('nofollow');
-        $this->get('/seo/backlinks/export')->assertDownload('backlinks.csv');
+        $csv = $this->get('/seo/backlinks/export')->assertDownload('backlinks.csv')->streamedContent();
+        $this->assertStringContainsString('https://source.example.com/', $csv);
+        $this->assertStringContainsString('found', $csv);
         $other = Agency::create(['name' => 'Other']);
         $other->users()->attach($this->user, ['role_id' => Role::where('name', 'agency_owner')->value('id')]);
         $this->withSession(['agency_id' => $other->id]);
