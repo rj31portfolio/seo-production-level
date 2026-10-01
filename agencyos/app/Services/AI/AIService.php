@@ -15,7 +15,7 @@ class AIService
 {
     public static function settings(): array
     {
-        return array_merge(['provider' => 'deepseek', 'enabled' => false, 'base_url' => 'https://api.deepseek.com', 'model' => 'deepseek-flash', 'temperature' => 0.4, 'max_tokens' => 2000, 'timeout' => 60, 'daily_limit' => 100, 'monthly_limit' => 1000, 'user_daily_limit' => 30, 'project_monthly_limit' => 300, 'max_input_chars' => 20000], SystemSetting::find('ai_settings')?->value ?? []);
+        return array_merge(['provider' => 'deepseek', 'enabled' => (bool) config('services.deepseek.enabled', false), 'base_url' => config('services.deepseek.base_url', 'https://api.deepseek.com'), 'model' => config('services.deepseek.model', 'deepseek-flash'), 'temperature' => 0.4, 'max_tokens' => config('services.deepseek.max_tokens', 2000), 'timeout' => config('services.deepseek.timeout', 60), 'daily_limit' => 100, 'monthly_limit' => 1000, 'user_daily_limit' => 30, 'project_monthly_limit' => 300, 'max_input_chars' => 20000], SystemSetting::find('ai_settings')?->value ?? []);
     }
 
     public function provider(): AIProviderInterface
@@ -27,7 +27,12 @@ class AIService
     {
         $cipher = SystemSetting::find('ai_key')?->value['encrypted'] ?? null;
         if (! $cipher) {
-            throw new \RuntimeException('AI is not configured. Normal SEO tools remain available.');
+            $environmentKey = trim((string) config('services.deepseek.api_key'));
+            if ($environmentKey !== '') {
+                return $environmentKey;
+            }
+
+            throw new \RuntimeException('AI is not configured. Set DEEPSEEK_API_KEY in .env or save a key in platform AI settings.');
         }
         try {
             return Crypt::decryptString($cipher);
@@ -76,8 +81,8 @@ class AIService
             $source = SeoToolRun::findOrFail($run->input['data_run_id']);
             Gate::authorize('view', $source);
             abort_unless($source->project_id === $run->project_id && $source->status === 'completed', 403);
-            foreach ($source->results()->limit(30)->get() as $result) {
-                $evidence[] = ['url' => $result->url, 'metrics' => $result->data['metrics'] ?? [], 'checks' => $result->data['checks'] ?? [], 'headings' => $result->data['headings'] ?? [], 'terms' => $result->data['terms'] ?? []];
+            foreach ($source->results()->orderByRaw("CASE WHEN kind = 'crawl_summary' THEN 0 WHEN kind = 'fetch_error' THEN 1 ELSE 2 END")->orderBy('id')->limit(30)->get() as $result) {
+                $evidence[] = ['url' => $result->url, 'kind' => $result->kind, 'metrics' => $result->data['metrics'] ?? [], 'checks' => $result->data['checks'] ?? [], 'title' => $result->data['title'] ?? null, 'description' => $result->data['description'] ?? null, 'score' => $result->data['score'] ?? null, 'error' => $result->data['error'] ?? null, 'duplicate_titles' => $result->data['duplicate_titles'] ?? [], 'duplicate_descriptions' => $result->data['duplicate_descriptions'] ?? [], 'headings' => $result->data['headings'] ?? [], 'terms' => $result->data['terms'] ?? []];
             }
         }
         $supplied = json_encode(['request' => $run->input['content'], 'collected_evidence' => $evidence], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -2,6 +2,29 @@
 @section('title','SEO tools')
 @section('description','Analyze your websites and content with internal tools. Results stay linked to your agency and projects.')
 @section('content')
+@can('seo_tools.audit')
+<section class="card mb-6 border-orange-200">
+    <h2 class="text-lg font-semibold">Audit another website</h2>
+    <p class="mt-2 text-sm text-gray-500">Enter a website URL to start a fresh audit. Previous audits remain in Tool history below.</p>
+    @if(\App\Services\Seo\ToolRegistry::enabled('audit') && (!$plan || in_array('audit', $plan->tools, true)) && (!isset($limits['audit']) || $limits['audit']->enabled))
+        @can('clients.view')
+        <form class="mt-5" method="POST" action="{{ route('seo.tools.run', 'audit') }}" x-data="{ busy: false }" @submit="busy = true">
+            @csrf
+            <label class="label" for="audit-url">Website URL</label>
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <input class="input flex-1" type="url" name="url" id="audit-url" placeholder="https://example.com/" maxlength="2048" required value="{{ old('url') }}">
+                <button class="btn shrink-0" :disabled="busy" x-text="busy ? 'Starting audit…' : 'Start website audit'">Start website audit</button>
+            </div>
+            <a class="mt-3 inline-block text-sm font-medium text-orange-600" href="{{ route('seo.tools.form', 'audit') }}">Choose a project or page limit</a>
+        </form>
+        @else
+        <a class="btn mt-5" href="{{ route('seo.tools.form', 'audit') }}">Start website audit</a>
+        @endcan
+    @else
+        <p class="mt-4 text-sm text-gray-500">Website audits are unavailable under your current settings or plan.</p>
+    @endif
+</section>
+@endcan
 <div class="card mb-6 flex flex-wrap gap-6 text-sm"><p><strong>Queued / running:</strong> {{ $queued }}</p><p><strong>Failed:</strong> {{ $failed }}</p><p><strong>Tool plan:</strong> {{ $plan?->name ?? 'Agency and platform settings' }}</p>@if($plan?->monthly_pages!==null)<p><strong>Reserved crawl pages this month:</strong> {{ $usage->sum('pages') }} / {{ $plan->monthly_pages }}</p>@endif</div>
 <div class="mb-7 grid gap-5 sm:grid-cols-3"><div class="card"><p class="text-sm text-gray-500">Tools permitted by your role</p><p class="mt-3 text-3xl font-semibold">{{ count($tools) }}</p></div><div class="card"><p class="text-sm text-gray-500">Your permitted runs today</p><p class="mt-3 text-3xl font-semibold">{{ $usedToday }}</p></div><div class="card"><p class="text-sm text-gray-500">Data sources</p><p class="mt-3 text-sm">Internal engine & supplied input</p><p class="mt-2 text-xs text-gray-400">External metrics appear only when supplied.</p></div></div>
 <details class="card mb-6"><summary class="cursor-pointer font-medium">Monthly usage and limits</summary><div class="mt-4 overflow-x-auto"><table class="w-full"><thead><tr><th class="table-th">Tool</th><th class="table-th">Used</th><th class="table-th">Limit</th><th class="table-th">Remaining</th></tr></thead><tbody>@foreach($tools as $slug=>$tool) @php($monthlyLimit=isset($limits[$slug]) ? $limits[$slug]->monthly_runs : ($plan?->limits[$slug] ?? null)) @php($used=$usage[$slug]->runs ?? 0)<tr><td class="table-td">{{ $tool['name'] }}</td><td class="table-td">{{ $used }}</td><td class="table-td">{{ $monthlyLimit ?? 'No monthly quota' }}</td><td class="table-td">{{ $monthlyLimit===null ? '—' : max(0,$monthlyLimit-$used) }}</td></tr>@endforeach</tbody></table></div></details>

@@ -27,6 +27,7 @@
                 @endforeach
                 @if(Route::has('employees.index')) @can('employees.manage')<a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('employees*') ? 'nav-active' : '' }}">♧ <span>Team members</span></a>@endcan @endif
                 @can('seo_tools.view')<a href="{{ route('seo.tools.index') }}" class="nav-link {{ request()->is('seo/*') ? 'nav-active' : '' }}">⌕ <span>SEO tools</span></a>@endcan
+                @can('seo_tools.audit')<a href="{{ route('seo.tools.form', 'audit') }}" class="nav-link {{ request()->is('seo/tools/audit') ? 'nav-active' : '' }}">◎ <span>Website audit</span></a>@endcan
                 @can('tasks.view')<a href="{{ route('seo.tasks.index') }}" class="nav-link">☑ <span>SEO tasks</span></a>@endcan
                 @can('seo_tools.reports')<a href="{{ route('seo.reports.index') }}" class="nav-link">▤ <span>SEO reports</span></a>@endcan
                 <p class="pb-2 pt-8 px-3 text-[10px] font-semibold uppercase tracking-[.2em] text-gray-500">Management</p>

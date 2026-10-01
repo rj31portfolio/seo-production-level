@@ -1,0 +1,17 @@
+ M app/Http/Controllers/AISettingsController.php
+ M app/Http/Controllers/SeoWorkController.php
+ M app/Providers/AppServiceProvider.php
+ M app/Services/AI/AIService.php
+ M app/Services/Seo/PageAnalyzer.php
+ M config/services.php
+ M resources/views/layouts/app.blade.php
+ M resources/views/seo/ai-settings.blade.php
+ M resources/views/seo/form.blade.php
+ M resources/views/seo/hub.blade.php
+ M resources/views/seo/report-body.blade.php
+ M resources/views/seo/result.blade.php
+ M tests/Feature/AIToolsTest.php
+ M tests/Feature/SeoEngineTest.php
+ M tests/Feature/SeoToolsTest.php
+ M tests/Feature/SeoWorkTest.php
+?? app/Services/Seo/ReportBuilder.php

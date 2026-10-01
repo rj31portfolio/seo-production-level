@@ -64,11 +64,24 @@ class SeoEngineTest extends TestCase
         $checks = array_column($data['checks'], null, 'rule');
         $this->assertFalse($checks['heading_hierarchy']['passed']);
         $this->assertFalse($checks['image_alt_attributes']['passed']);
+        $this->assertFalse($checks['description_length']['passed']);
+        $this->assertFalse($checks['viewport_present']['passed']);
+        $this->assertFalse($checks['document_language']['passed']);
         $this->assertSame('Article', $data['schema'][0]['type']);
         $score = $analyzer->score($data['checks']);
         $this->assertGreaterThan(0, $score['overall']);
         $this->assertLessThan(100, $score['overall']);
         $passed = array_map(fn ($c) => array_replace($c, ['passed' => true]), $data['checks']);
         $this->assertSame(100.0, $analyzer->score($passed)['overall']);
+    }
+
+    public function test_mobile_metadata_and_language_checks_use_collected_html(): void
+    {
+        $html = '<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A useful description of this page and the information readers can find here."></head><body><h1>Page topic</h1></body></html>';
+        $data = app(PageAnalyzer::class)->analyze(['url' => 'https://example.com/', 'body' => $html, 'status' => 200, 'headers' => [], 'response_ms' => 10, 'bytes' => strlen($html), 'redirects' => []]);
+        $checks = array_column($data['checks'], null, 'rule');
+        $this->assertTrue($checks['description_length']['passed']);
+        $this->assertTrue($checks['viewport_present']['passed']);
+        $this->assertTrue($checks['document_language']['passed']);
     }
 }

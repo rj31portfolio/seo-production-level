@@ -8,9 +8,9 @@ use App\Models\Role;
 use App\Models\SeoTask;
 use App\Models\SeoToolRun;
 use App\Services\Activity;
+use App\Services\Seo\ReportBuilder;
 use App\Services\Seo\ToolAccess;
 use App\Services\Seo\ToolRegistry;
-use App\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -84,18 +84,15 @@ class SeoWorkController extends Controller
         return back()->with('success', 'Task updated.');
     }
 
-    public function generateReport(SeoToolRun $run): RedirectResponse
+    public function generateReport(SeoToolRun $run, ReportBuilder $builder): RedirectResponse
     {
         Gate::authorize('view', $run);
         app(ToolAccess::class)->authorizeRun(auth()->user(), 'report-generator', $run->project);
         abort_unless($run->status === 'completed', 422, 'Use a completed tool run.');
-        $rows = [];
-        foreach ($run->results()->lazyById(100) as $result) {
-            $rows[] = ['url' => $result->url, 'kind' => $result->kind, 'metrics' => $result->data['metrics'] ?? [], 'checks' => $result->data['checks'] ?? [], 'score' => $result->data['score'] ?? null, 'error' => $result->data['error'] ?? null, 'recommendations' => $result->data['recommendations'] ?? [], 'keywords' => $result->data['keywords'] ?? [], 'notes' => $result->data['notes'] ?? []];
-        }
-        $report = DB::transaction(function () use ($run, $rows) {
+        $snapshot = $builder->snapshot($run);
+        $report = DB::transaction(function () use ($run, $snapshot) {
             app(ToolAccess::class)->consume('report-generator');
-            $report = Report::create(['user_id' => auth()->id(), 'project_id' => $run->project_id, 'seo_tool_run_id' => $run->id, 'title' => ToolRegistry::get($run->tool)['name'].' report', 'snapshot' => ['agency' => app(TenantContext::class)->agency()->name, 'project' => $run->project?->name, 'source' => $run->source, 'collected_at' => $run->created_at->toIso8601String(), 'summary' => $run->summary, 'rows' => $rows, 'missing_data' => ['Rankings/search volumes/backlink authority and traffic are unavailable unless separately supplied.']]]);
+            $report = Report::create(['user_id' => auth()->id(), 'project_id' => $run->project_id, 'seo_tool_run_id' => $run->id, 'title' => ToolRegistry::get($run->tool)['name'].' report', 'snapshot' => $snapshot]);
             Activity::record('seo_report.created', $report);
 
             return $report;

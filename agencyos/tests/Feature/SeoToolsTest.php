@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Seo\SafeFetcher;
 use App\Tenancy\TenantContext;
 use Database\Seeders\PermissionSeeder;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -49,6 +50,58 @@ class SeoToolsTest extends TestCase
         $this->assertStringContainsString('"word_count":5', str_replace('""', '"', $csv));
         $this->post('/seo/tools/url-analyzer', ['url' => 'https://example.com/SEO_page?q=test'])->assertRedirect();
         $this->assertDatabaseCount('seo_tool_runs', 2);
+    }
+
+    public function test_development_worker_processes_seo_jobs_using_the_current_php_runtime(): void
+    {
+        $worker = collect(DevCommands::commands())->firstWhere('name', 'queue');
+        $this->assertNotNull($worker);
+        $this->assertStringContainsString('--queue=seo,default', $worker['command']);
+        $this->assertStringStartsWith('"'.PHP_BINARY.'" artisan', $worker['command']);
+    }
+
+    public function test_another_website_starts_a_fresh_audit_and_preserves_previous_results(): void
+    {
+        Queue::fake();
+        $this->get('/seo/tools')->assertOk()->assertSee('Audit another website')->assertSee('id="audit-url"', false);
+        $this->get('/seo/tools/audit')->assertOk()->assertSee('Maximum pages to audit')->assertSee('Start website audit');
+        $fetcher = \Mockery::mock(SafeFetcher::class);
+        $fetcher->shouldReceive('fetch')->twice()->andReturnUsing(function (string $url): array {
+            $html = '<html><head><title>'.parse_url($url, PHP_URL_HOST).'</title></head><body><h1>Collected page</h1></body></html>';
+
+            return ['url' => $url, 'status' => 200, 'headers' => ['content-type' => 'text/html'], 'body' => $html, 'bytes' => strlen($html), 'response_ms' => 10, 'redirects' => []];
+        });
+        $this->app->instance(SafeFetcher::class, $fetcher);
+        $runIds = [];
+        foreach (['https://example.com/', 'https://another.example.com/'] as $url) {
+            $this->post('/seo/tools/audit', ['url' => $url, 'max_pages' => 1])->assertRedirect()->assertSessionHasNoErrors();
+            $id = DB::table('seo_tool_runs')->max('id');
+            $runIds[] = $id;
+            app()->call([new ExecuteSeoTool($this->agency->id, $id), 'handle']);
+            $this->assertDatabaseHas('seo_tool_runs', ['id' => $id, 'status' => 'completed']);
+            $this->get('/seo/runs/'.$id)->assertOk()->assertSee(parse_url($url, PHP_URL_HOST))->assertSee('Audit another website');
+        }
+        $this->assertNotSame($runIds[0], $runIds[1]);
+        $this->assertDatabaseCount('seo_tool_runs', 2);
+        $oldResult = json_decode(DB::table('seo_tool_results')->where('seo_tool_run_id', $runIds[0])->where('kind', 'page')->value('data'), true);
+        $this->assertSame('example.com', $oldResult['title']);
+        $newResult = DB::table('seo_tool_results')->where('seo_tool_run_id', $runIds[1])->where('kind', 'page')->first();
+        $this->assertSame('https://another.example.com/', $newResult->url);
+        Queue::assertPushed(ExecuteSeoTool::class, 2);
+        $this->get('/seo/tools')->assertOk()->assertSee('Tool history');
+        $this->get('/seo/tools/audit')->assertOk()->assertSee('value=""', false)->assertDontSee('another.example.com');
+    }
+
+    public function test_quick_audit_respects_project_requirements_and_disabled_tools(): void
+    {
+        $this->agency->users()->updateExistingPivot($this->owner->id, ['role_id' => Role::where('name', 'developer')->value('id')]);
+        $this->get('/seo/tools')->assertOk()->assertSee('Start website audit')->assertDontSee('id="audit-url"', false);
+        $this->post('/seo/tools/audit', ['url' => 'https://example.com/'])->assertForbidden();
+        $this->agency->users()->updateExistingPivot($this->owner->id, ['role_id' => Role::where('name', 'agency_owner')->value('id')]);
+        SystemSetting::create(['key' => 'seo_disabled_tools', 'value' => ['audit']]);
+        $this->get('/seo/tools')->assertOk()->assertSee('Website audits are unavailable')->assertDontSee('id="audit-url"', false);
+        $this->post('/seo/tools/audit', ['url' => 'https://example.com/'])->assertForbidden();
+        $this->assertDatabaseCount('seo_tool_runs', 0);
     }
 
     public function test_invalid_empty_large_input_and_credential_urls_are_rejected(): void
@@ -157,6 +210,6 @@ class SeoToolsTest extends TestCase
         $data = json_decode(DB::table('seo_tool_results')->where('kind', 'sitemap')->value('data'), true);
         $this->assertSame(2, $data['metrics']['urls']);
         $this->assertSame(1, $data['metrics']['duplicates']);
-        $this->assertDatabaseCount('seo_tool_results',3);
+        $this->assertDatabaseCount('seo_tool_results', 3);
     }
 }

@@ -3,6 +3,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 test('SEO tools save actual input, export reports and work on mobile', async ({ page }) => {
+    const browserEnvironment = { ...process.env, APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: path.resolve('storage/framework/testing/seo-browser.sqlite') };
+    execFileSync(path.resolve('../.tools/php/php.exe'), ['artisan', 'queue:clear', 'database', '--queue=seo', '--force', '--no-interaction'], { cwd: process.cwd(), env: browserEnvironment });
     await page.goto('/register');
     await page.getByLabel('Your name', { exact: true }).fill('SEO Browser Owner');
     await page.getByLabel('Agency name', { exact: true }).fill(`SEO Browser Agency ${Date.now()}`);
@@ -23,7 +25,7 @@ test('SEO tools save actual input, export reports and work on mobile', async ({ 
     await page.getByRole('button', { name: 'Generate report', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Content analyzer report', level: 1 }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Prepare PDF' }).click();
-    execFileSync(path.resolve('../.tools/php/php.exe'), ['artisan', 'queue:work', '--queue=seo', '--once', '--tries=1', '--timeout=180', '--no-interaction'], { cwd: process.cwd(), env: { ...process.env, APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: path.resolve('storage/framework/testing/seo-browser.sqlite') } });
+    execFileSync(path.resolve('../.tools/php/php.exe'), ['artisan', 'queue:work', '--queue=seo', '--once', '--tries=1', '--timeout=180', '--no-interaction'], { cwd: process.cwd(), env: browserEnvironment });
     await page.reload();
     const pdf = await page.request.get(await page.getByRole('link', { name: 'Download PDF' }).getAttribute('href'));
     expect(pdf.status()).toBe(200);
@@ -38,7 +40,20 @@ test('SEO tools save actual input, export reports and work on mobile', async ({ 
     await page.getByLabel('Request and known facts').fill('Suggest a roof repair outline');
     await page.getByRole('button', { name: 'Run tool', exact: true }).click();
     await expect(page.getByText('AI is disabled. Normal SEO tools remain available.', { exact: true })).toBeVisible();
-    for (const url of ['/seo/tools', '/seo/tasks', '/seo/reports', '/seo/rankings', '/seo/backlinks', '/seo/monitoring', '/seo/tools/competitor-analyzer', '/seo/tools/seo-changes']) {
+    await page.goto('/seo/tools');
+    await page.getByLabel('Website URL', { exact: true }).fill('https://example.com/');
+    await page.getByRole('button', { name: 'Start website audit', exact: true }).click();
+    await expect(page).toHaveURL(/\/seo\/runs\/\d+$/);
+    const firstAuditUrl = page.url();
+    await page.getByRole('link', { name: 'Audit another website', exact: true }).click();
+    await expect(page.getByLabel('URL', { exact: true })).toHaveValue('');
+    await page.getByLabel('URL', { exact: true }).fill('https://another.example.com/');
+    await page.getByLabel('Maximum pages to audit').fill('1');
+    await page.getByRole('button', { name: 'Start website audit', exact: true }).click();
+    await expect(page).toHaveURL(/\/seo\/runs\/\d+$/);
+    expect(page.url()).not.toBe(firstAuditUrl);
+    await expect(page.getByText('https://another.example.com/', { exact: true })).toBeVisible();
+    for (const url of ['/seo/tools', '/seo/tools/audit', '/seo/tasks', '/seo/reports', '/seo/rankings', '/seo/backlinks', '/seo/monitoring', '/seo/tools/competitor-analyzer', '/seo/tools/seo-changes']) {
         await page.setViewportSize({ width: 390, height: 844 });
         const response = await page.goto(url);
         expect(response.status()).toBe(200);

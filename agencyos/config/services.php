@@ -2,6 +2,15 @@
 
 return [
 
+    'deepseek' => [
+        'api_key' => env('DEEPSEEK_API_KEY'),
+        'enabled' => env('DEEPSEEK_ENABLED', (bool) env('DEEPSEEK_API_KEY')),
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-flash'),
+        'timeout' => (int) env('DEEPSEEK_TIMEOUT', 60),
+        'max_tokens' => (int) env('DEEPSEEK_MAX_TOKENS', 2000),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

@@ -11,6 +11,7 @@ use App\Policies\SeoToolRunPolicy;
 use App\Services\Seo\ToolRegistry;
 use App\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            DevCommands::register('"'.PHP_BINARY.'" artisan serve', 'server');
+            DevCommands::register('"'.PHP_BINARY.'" artisan queue:listen --queue=seo,default --tries=1 --timeout=0', 'queue');
+        }
         foreach ([Client::class, Project::class, Website::class] as $model) {
             Gate::policy($model, OperationalPolicy::class);
         }

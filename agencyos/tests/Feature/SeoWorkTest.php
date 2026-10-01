@@ -95,4 +95,49 @@ class SeoWorkTest extends TestCase
         $this->get('/seo/reports/'.$id.'/pdf')->assertNotFound();
         $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertNotFound();
     }
+
+    public function test_report_prioritizes_grouped_findings_retains_duplicates_and_excludes_unavailable_scores(): void
+    {
+        app(TenantContext::class)->run($this->agency, function (): void {
+            $first = $this->run->results()->first();
+            $first->update(['data' => $first->data + ['title' => 'Shared title', 'score' => ['overall' => 60, 'categories' => ['technical' => 50], 'weights' => ['technical' => 20]]]]);
+            $this->run->results()->create(['url' => 'https://example.com/about', 'kind' => 'page', 'data' => ['title' => 'Shared title', 'score' => ['overall' => 80], 'checks' => [
+                ['rule' => 'https', 'passed' => false, 'severity' => 'high', 'category' => 'technical', 'recommendation' => 'Use HTTPS'],
+                ['rule' => 'http_success', 'passed' => true, 'severity' => 'critical', 'category' => 'technical', 'recommendation' => 'Review status'],
+            ]]]);
+            $this->run->results()->create(['url' => 'https://example.com/unavailable', 'kind' => 'fetch_error', 'data' => ['error' => 'Fetch timed out.']]);
+            $this->run->results()->create(['kind' => 'crawl_summary', 'data' => ['duplicate_titles' => ['Shared title' => ['https://example.com/', 'https://example.com/about']]]]);
+        });
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $snapshot = json_decode(DB::table('reports')->value('snapshot'), true);
+        $analysis = $snapshot['analysis'];
+        $this->assertSame(2, $analysis['analyzed_pages']);
+        $this->assertSame(1, $analysis['fetch_failures']);
+        $this->assertEquals(70, $analysis['average_score']);
+        $this->assertSame(4, $analysis['actionable_findings']);
+        $this->assertSame(2, $analysis['review_findings']);
+        $this->assertSame('https', $analysis['issues'][0]['rule']);
+        $this->assertSame(2, $analysis['issues'][0]['affected_pages']);
+        $this->assertSame('duplicate_titles', $analysis['issues'][1]['rule']);
+        $this->assertEquals(33.3, $analysis['categories']['technical']['pass_rate']);
+        $id = DB::table('reports')->value('id');
+        $this->get('/seo/reports/'.$id)->assertOk()->assertSee('Prioritized action plan')->assertSee('Category health')->assertSee('Page inventory')->assertSee('Shared title')->assertSee('Fetch timed out.');
+        Storage::fake('local');
+        Queue::fake();
+        $this->post('/seo/reports/'.$id.'/pdf')->assertRedirect();
+        app()->call([new GenerateReportPdf($this->agency->id, $id), 'handle']);
+        $this->get('/seo/reports/'.$id.'/pdf')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_reports_without_page_scores_and_legacy_snapshots_still_render(): void
+    {
+        app(TenantContext::class)->run($this->agency, fn () => $this->run->results()->delete());
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $snapshot = json_decode(DB::table('reports')->value('snapshot'), true);
+        $this->assertNull($snapshot['analysis']['average_score']);
+        $this->assertSame(0, $snapshot['analysis']['analyzed_pages']);
+        unset($snapshot['analysis'], $snapshot['generated_at'], $snapshot['target_url']);
+        DB::table('reports')->update(['snapshot' => json_encode($snapshot)]);
+        $this->get('/seo/reports/'.DB::table('reports')->value('id'))->assertOk()->assertSee('Executive summary');
+    }
 }

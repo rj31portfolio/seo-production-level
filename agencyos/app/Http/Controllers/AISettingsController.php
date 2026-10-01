@@ -14,7 +14,7 @@ class AISettingsController extends Controller
 {
     public function index(): View
     {
-        return view('seo.ai-settings', ['settings' => AIService::settings(), 'hasKey' => SystemSetting::whereKey('ai_key')->exists()]);
+        return view('seo.ai-settings', ['settings' => AIService::settings(), 'hasKey' => SystemSetting::whereKey('ai_key')->exists(), 'hasEnvironmentKey' => trim((string) config('services.deepseek.api_key')) !== '']);
     }
 
     public function update(Request $request): RedirectResponse

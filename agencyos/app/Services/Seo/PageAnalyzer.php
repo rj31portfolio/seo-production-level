@@ -47,7 +47,7 @@ class PageAnalyzer
             return '';
         };
         $metadata = [];
-        foreach (['description', 'robots', 'og:title', 'og:description', 'og:image', 'twitter:card', 'twitter:title'] as $name) {
+        foreach (['description', 'robots', 'viewport', 'og:title', 'og:description', 'og:image', 'twitter:card', 'twitter:title'] as $name) {
             $metadata[$name] = $meta($name);
         }
         $meta = fn (string $name): string => $metadata[$name] ?? '';
@@ -129,6 +129,9 @@ class PageAnalyzer
         $add('title_present', $title !== '', 'high', 'on_page', 'Give the page a descriptive title.');
         $add('title_length', mb_strlen($title) >= 15 && mb_strlen($title) <= 65, 'low', 'on_page', 'Review title length for clarity. Display width varies; this is a heuristic.');
         $add('description_present', $meta('description') !== '', 'medium', 'on_page', 'Write a useful meta description for this page.');
+        $add('description_length', mb_strlen($meta('description')) >= 50 && mb_strlen($meta('description')) <= 170, 'low', 'on_page', 'Review meta description clarity and length. The 50–170 character range is a heuristic; search snippets can be rewritten.');
+        $add('viewport_present', $meta('viewport') !== '', 'medium', 'technical', 'Declare a viewport appropriate for mobile devices, then check the layout in a browser. This check does not measure mobile usability.');
+        $add('document_language', trim($text('(//html/@lang)[1]')) !== '', 'low', 'technical', 'Declare the document language with the HTML lang attribute.');
         $add('one_h1', count($h1) === 1, 'medium', 'on_page', 'Review the main heading and ensure a clear page topic.');
         $add('heading_hierarchy', $hierarchy, 'low', 'on_page', 'Use a logical heading structure.');
         $add('headings_not_empty', ! array_filter($headings, fn ($h) => $h['text'] === ''), 'low', 'on_page', 'Add descriptive text to empty headings.');
