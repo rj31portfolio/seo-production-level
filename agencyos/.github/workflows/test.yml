@@ -1,0 +1,40 @@
+name: Application tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, mysql]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: agencyos_test
+          MYSQL_ROOT_PASSWORD: disposable_ci_database_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, curl, pdo_mysql, pdo_sqlite, zip, dom, fileinfo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: npm ci --ignore-scripts && npm run build
+      - run: php artisan test
+        env:
+          DB_CONNECTION: ${{ matrix.database }}
+          DB_DATABASE: ${{ matrix.database == 'mysql' && 'agencyos_test' || ':memory:' }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USERNAME: root
+          DB_PASSWORD: disposable_ci_database_only

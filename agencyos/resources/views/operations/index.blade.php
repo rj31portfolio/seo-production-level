@@ -1,0 +1,12 @@
+@extends('layouts.app')
+@section('title', $definition['label'])
+@section('description', $definition['description'])
+@section('action')@can($module.'.create')<a class="btn" href="{{ route($module.'.create') }}">＋ Add {{ strtolower($definition['singular']) }}</a>@endcan @endsection
+@section('content')
+<div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+<form class="flex flex-wrap items-center gap-3 p-5"><input class="input w-64" name="q" value="{{ request('q') }}" placeholder="Search {{ strtolower($definition['label']) }}" aria-label="Search"><select class="input w-auto" name="status" aria-label="Status"><option value="">All statuses</option>@foreach(['active','paused','completed','archived'] as $status)<option @selected(request('status')===$status)>{{ $status }}</option>@endforeach</select><select name="sort" class="input w-auto" aria-label="Sort"><option value="created_at">Newest first</option><option value="name" @selected(request('sort')==='name')>Name</option></select><select name="direction" class="input w-auto" aria-label="Direction"><option value="desc">Descending</option><option value="asc" @selected(request('direction')==='asc')>Ascending</option></select><button class="btn-secondary">Apply</button><a class="text-sm text-gray-400" href="{{ route($module.'.index') }}">Reset</a></form>
+<div class="overflow-x-auto"><table class="w-full"><thead><tr><th class="table-th">Name</th><th class="table-th">{{ $module==='websites' ? 'URL' : 'Created' }}</th><th class="table-th">Status</th><th class="table-th">Action</th></tr></thead><tbody>
+@forelse($records as $record)<tr><td class="table-td"><a class="font-semibold hover:text-orange-600" href="{{ route($module.'.show',$record) }}">{{ $record->name }}</a></td><td class="table-td">{{ $module==='websites' ? $record->url : $record->created_at->format('d M Y') }}</td><td class="table-td"><span class="badge">{{ ucfirst($record->status) }}</span></td><td class="table-td"><a class="text-orange-600" href="{{ route($module.'.show',$record) }}">View details ↗</a></td></tr>
+@empty<tr><td class="table-td py-16 text-center" colspan="4"><p class="font-semibold text-gray-700">No {{ strtolower($definition['label']) }} found</p><p class="mt-2 text-gray-400">Add your first record or adjust the filters.</p></td></tr>@endforelse
+</tbody></table></div><div class="p-5">{{ $records->links() }}</div></div>
+@endsection

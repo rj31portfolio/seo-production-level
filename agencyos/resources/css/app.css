@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer components {
+    .card { @apply rounded-2xl border border-gray-200 bg-white p-6 shadow-xs; }
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 focus:outline-2 focus:outline-offset-2 focus:outline-orange-500 disabled:opacity-50; }
+    .btn-secondary { @apply inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50; }
+    .input { @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-orange-500; }
+    .label { @apply mb-2 block text-sm font-medium text-gray-700; }
+    .nav-link { @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:bg-white/5 hover:text-white; }
+    .nav-active { @apply bg-orange-500/15 text-orange-400; }
+    .badge { @apply inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600; }
+    .table-th { @apply whitespace-nowrap bg-gray-50 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500; }
+    .table-td { @apply border-t border-gray-100 px-5 py-4 text-sm text-gray-700; }
+}
+[x-cloak] { display: none !important; }
