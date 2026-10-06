@@ -3,8 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite"
+        "build": "vite build --configLoader native",
+        "dev": "vite --configLoader native"
     },
     "devDependencies": {
         "@playwright/test": "^1.63.0",

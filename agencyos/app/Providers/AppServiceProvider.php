@@ -33,7 +33,8 @@ class AppServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             DevCommands::register('"'.PHP_BINARY.'" artisan serve', 'server');
-            DevCommands::register('"'.PHP_BINARY.'" artisan queue:listen --queue=seo,default --tries=1 --timeout=0', 'queue');
+            DevCommands::register('"'.PHP_BINARY.'" artisan queue:work --queue=seo,default --sleep=3 --tries=1 --timeout=1800 --memory=384', 'queue');
+            DevCommands::register('"'.PHP_BINARY.'" artisan schedule:work', 'scheduler');
         }
         foreach ([Client::class, Project::class, Website::class] as $model) {
             Gate::policy($model, OperationalPolicy::class);
