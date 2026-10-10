@@ -130,14 +130,35 @@ class SeoToolsController extends Controller
         Gate::authorize('view', $run);
         $results = $run->results()->orderBy('id')->paginate(10);
 
-        return view('seo.result', ['run' => $run, 'results' => $results, 'definition' => ToolRegistry::get($run->tool)]);
+        return view('seo.result', ['run' => $run, 'results' => $results, 'definition' => ToolRegistry::get($run->tool), 'progress' => $this->progress($run)]);
     }
 
     public function status(SeoToolRun $run): JsonResponse
     {
         Gate::authorize('view', $run);
 
-        return response()->json($run->only(['id', 'status', 'processed', 'discovered', 'error', 'finished_at']));
+        return response()->json($this->progress($run))->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function progress(SeoToolRun $run): array
+    {
+        $counts = $run->results()->selectRaw('kind, COUNT(*) AS total')->groupBy('kind')->pluck('total', 'kind');
+        $limit = $run->input['max_pages'] ?? null;
+        $target = $limit ? min((int) $limit, (int) $run->discovered) : (int) $run->discovered;
+        $percentage = $run->status === 'completed' ? 100 : ($target > 0 ? min(99, (int) floor($run->processed / $target * 100)) : 0);
+
+        return $run->only(['id', 'status', 'processed', 'discovered', 'error', 'finished_at']) + [
+            'percentage' => $percentage,
+            'analyzed' => (int) ($counts['page'] ?? 0),
+            'fetch_failures' => (int) ($counts['fetch_error'] ?? 0),
+            'page_limit' => $limit,
+            'latest_url' => $run->results()->whereNotNull('url')->latest('id')->value('url'),
+            'elapsed_seconds' => $run->started_at ? (int) $run->started_at->diffInSeconds($run->finished_at ?? now()) : 0,
+            'waiting_seconds' => $run->status === 'queued' ? (int) $run->created_at->diffInSeconds(now()) : 0,
+        ];
     }
 
     public function export(SeoToolRun $run): StreamedResponse

@@ -18,6 +18,9 @@
     .audit-report .priority-medium { border-color: #ea580c; }
     .audit-report .url { font-size: 11px; word-break: break-all; }
     .audit-report .page { margin-top: 24px; }
+    .audit-report .generated-content ul { list-style: disc; padding-left: 24px; }
+    .audit-report .generated-content ol { list-style: decimal; padding-left: 24px; }
+    .audit-report .generated-content pre { white-space: pre-wrap; word-wrap: break-word; }
     @media print { .audit-report { font-size: 11px; } .audit-report thead { display: table-header-group; } .audit-report tr { page-break-inside: avoid; } .audit-report h2, .audit-report h3 { page-break-after: avoid; } }
 </style>
 <div class="audit-report">
@@ -86,6 +89,6 @@
 @foreach(['duplicate_titles' => 'Duplicate titles', 'duplicate_descriptions' => 'Duplicate descriptions'] as $field => $label)@if(!empty($row[$field]))<h3>{{ $label }}</h3>@foreach($row[$field] as $text => $urls)<p><strong>{{ $text }}</strong></p>@foreach($urls as $url)<p class="url">{{ $url }}</p>@endforeach @endforeach @endif @endforeach
 @foreach($row['metrics'] as $key=>$value)@if(!is_array($value))<p>{{ ucwords(str_replace('_',' ',$key)) }}: {{ $value === null ? 'Not available' : (is_bool($value) ? ($value ? 'Yes' : 'No') : $value) }}</p>@endif @endforeach
 @if($row['error'])<p>Data unavailable: {{ $row['error'] }}</p>@endif @if($row['checks'])<table><thead><tr><th>Finding</th><th>Status</th><th>Recommendation</th></tr></thead><tbody>@foreach($row['checks'] as $check)<tr><td>{{ ucwords(str_replace('_',' ',$check['rule'])) }}</td><td>{{ $check['passed'] ? 'Passed' : ucfirst($check['severity']) }}</td><td>{{ $check['recommendation'] }}</td></tr>@endforeach</tbody></table>@endif</section>@endforeach
-@foreach($report->snapshot['rows'] as $row) @foreach($row['recommendations'] ?? [] as $recommendation)<p>{{ $recommendation }}</p>@endforeach @if(!empty($row['keywords']))<h2>Keyword analysis</h2><table><thead><tr><th>Keyword</th><th>Intent</th><th>Cluster</th></tr></thead><tbody>@foreach($row['keywords'] as $keyword)<tr><td>{{ $keyword['keyword'] }}</td><td>{{ $keyword['intent'] }}</td><td>{{ $keyword['cluster'] }}</td></tr>@endforeach</tbody></table>@endif @foreach($row['notes'] ?? [] as $note)<p>{{ $note }}</p>@endforeach @endforeach
+@foreach($report->snapshot['rows'] as $row) @include('seo.recommendations', ['recommendations' => $row['recommendations'] ?? [], 'isAi' => $report->snapshot['source'] === 'DeepSeek AI']) @if(!empty($row['keywords']))<h2>Keyword analysis</h2><table><thead><tr><th>Keyword</th><th>Intent</th><th>Cluster</th></tr></thead><tbody>@foreach($row['keywords'] as $keyword)<tr><td>{{ $keyword['keyword'] }}</td><td>{{ $keyword['intent'] }}</td><td>{{ $keyword['cluster'] }}</td></tr>@endforeach</tbody></table>@endif @foreach($row['notes'] ?? [] as $note)<p>{{ $note }}</p>@endforeach @endforeach
 <h2>Data scope and next steps</h2>@foreach($report->snapshot['missing_data'] as $note)<p>{{ $note }}</p>@endforeach<p>SEO AgencyOS Score is an internal diagnostic score and is not an official Google score. Review recommendations before implementation and rerun an audit after changes.</p>
 </div>

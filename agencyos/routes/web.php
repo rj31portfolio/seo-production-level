@@ -3,12 +3,15 @@
 use App\Http\Controllers\AISettingsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BacklinkController;
+use App\Http\Controllers\ClientLoginController;
+use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\ClientSubscriptionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FoundationController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\SeoBulkController;
 use App\Http\Controllers\SeoSettingsController;
 use App\Http\Controllers\SeoToolsController;
 use App\Http\Controllers\SeoWorkController;
@@ -45,6 +48,19 @@ Route::middleware('auth')->group(function () {
         Route::patch('/super-admin/expiry-settings', [ClientSubscriptionController::class, 'updateExpirySettings']);
     });
     Route::middleware('tenant')->group(function () {
+        Route::post('/clients/{client}/login', [ClientLoginController::class, 'store'])->middleware('can:clients.edit')->name('clients.login.store');
+        Route::prefix('portal')->name('portal.')->middleware('can:client.portal')->group(function (): void {
+            Route::get('/reports', [ClientPortalController::class, 'reports'])->name('reports.index');
+            Route::get('/reports/{report}', [ClientPortalController::class, 'report'])->name('reports.show');
+            Route::get('/reports/{report}/excel', [ClientPortalController::class, 'reportExcel'])->name('reports.excel');
+            Route::get('/reports/{report}/pdf', [ClientPortalController::class, 'pdf'])->name('reports.pdf');
+            Route::get('/backlinks', [ClientPortalController::class, 'backlinks'])->name('backlinks.index');
+            Route::get('/backlinks/excel', [ClientPortalController::class, 'backlinksExcel'])->name('backlinks.excel');
+        });
+        Route::get('/seo/bulk-upload', [SeoBulkController::class, 'index'])->middleware('can:seo_tools.view')->name('seo.bulk.index');
+        Route::get('/seo/bulk-upload/templates/{type}', [SeoBulkController::class, 'template'])->middleware('can:seo_tools.view')->name('seo.bulk.template');
+        Route::post('/seo/bulk-upload/tasks', [SeoBulkController::class, 'importTasks'])->middleware(['can:tasks.assign', 'throttle:seo-tools'])->name('seo.bulk.tasks.import');
+        Route::get('/seo/bulk-upload/tasks', [SeoBulkController::class, 'exportTasks'])->middleware('can:tasks.assign')->name('seo.bulk.tasks.export');
         $seo = SeoToolsController::class;
         $work = SeoWorkController::class;
         $rank = RankingController::class;
@@ -70,10 +86,12 @@ Route::middleware('auth')->group(function () {
         });
         Route::get('/seo/tasks', [$work, 'tasks'])->middleware('can:tasks.view')->name('seo.tasks.index');
         Route::patch('/seo/tasks/{task}', [$work, 'updateTask'])->middleware('can:tasks.view')->name('seo.tasks.update');
+        Route::delete('/seo/tasks/{task}', [$work, 'destroyTask'])->middleware(['can:tasks.view', 'can:seo_tools.delete'])->name('seo.tasks.destroy');
         Route::post('/seo/runs/{run}/tasks', [$work, 'generateTasks'])->middleware('can:tasks.create')->name('seo.runs.tasks');
         Route::post('/seo/runs/{run}/report', [$work, 'generateReport'])->middleware('can:seo_tools.reports')->name('seo.runs.report');
         Route::get('/seo/reports', [$work, 'reports'])->middleware('can:seo_tools.reports')->name('seo.reports.index');
         Route::get('/seo/reports/{report}', [$work, 'report'])->middleware('can:seo_tools.reports')->name('seo.reports.show');
+        Route::delete('/seo/reports/{report}', [$work, 'destroyReport'])->middleware(['can:seo_tools.reports', 'can:seo_tools.delete'])->name('seo.reports.destroy');
         Route::get('/seo/reports/{report}/html', [$work, 'html'])->middleware('can:seo_tools.reports')->name('seo.reports.html');
         Route::get('/seo/reports/{report}/pdf', [$work, 'pdf'])->middleware('can:seo_tools.reports')->name('seo.reports.pdf');
         Route::post('/seo/reports/{report}/pdf', [$work, 'preparePdf'])->middleware(['can:seo_tools.reports', 'throttle:seo-tools'])->name('seo.reports.prepare-pdf');

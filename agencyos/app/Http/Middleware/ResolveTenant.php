@@ -18,6 +18,8 @@ class ResolveTenant
         abort_unless($agency->status === 'active', 403, 'This agency is suspended.');
         $context->set($agency);
         try {
+            abort_if($request->user()->hasPermission('client.portal') && ! $request->routeIs('portal.*', 'dashboard'), 403, 'Client accounts can access only reports and backlinks.');
+
             return $next($request);
         } finally {
             $context->clear();

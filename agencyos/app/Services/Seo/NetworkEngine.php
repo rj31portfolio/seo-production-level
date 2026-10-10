@@ -45,7 +45,9 @@ class NetworkEngine
         foreach ($input['urls'] ?? [$root] as $target) {
             $queue->enqueue([$target, 0]);
             $seen[$target] = true;
-        }$analyzed = [];
+        }
+        $run->update(['discovered' => count($seen)]);
+        $analyzed = [];
         $failures = 0;
         $referenceUrl = null;
         while (! $queue->isEmpty() && $run->processed < $limit) {

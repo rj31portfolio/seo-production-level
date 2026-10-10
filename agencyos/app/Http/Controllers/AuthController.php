@@ -29,7 +29,11 @@ class AuthController extends Controller
         $request->session()->put('agency_id', $agency?->id);
         Activity::record('auth.login', $request->user(), [], $agency?->id);
 
-        return redirect($request->user()->is_super_admin ? '/super-admin' : '/dashboard');
+        if ($request->user()->is_super_admin) {
+            return redirect()->route('super-admin');
+        }
+
+        return redirect()->route($agency && Role::find($agency->pivot->role_id)?->name === 'client' ? 'portal.reports.index' : 'dashboard');
     }
 
     public function register(Request $request)

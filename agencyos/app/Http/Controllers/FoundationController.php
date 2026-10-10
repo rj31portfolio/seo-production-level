@@ -17,6 +17,9 @@ class FoundationController extends Controller
 {
     public function dashboard()
     {
+        if (auth()->user()->hasPermission('client.portal')) {
+            return redirect()->route('portal.reports.index');
+        }
         $agency = app(TenantContext::class)->agency();
         $counts = ['Team members' => $agency->users()->count()];
         if (auth()->user()->hasPermission('clients.view')) {

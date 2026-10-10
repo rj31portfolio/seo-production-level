@@ -4,6 +4,7 @@
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Workspace') · SEO AgencyOS</title>
+    @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#f7f8fa] font-sans text-gray-900 antialiased" x-data="{ mobileMenu: false }">
@@ -21,6 +22,11 @@
                 <a href="{{ route('tool-plans.index') }}" class="nav-link">▤ <span>Platform tool plans</span></a>
             @endif
             @if(app(\App\Tenancy\TenantContext::class)->agency())
+                @can('client.portal')
+                <a href="{{ route('portal.reports.index') }}" class="nav-link {{ request()->routeIs('portal.reports.*') ? 'nav-active' : '' }}">Reports</a>
+                <a href="{{ route('portal.backlinks.index') }}" class="nav-link {{ request()->routeIs('portal.backlinks.*') ? 'nav-active' : '' }}">Backlinks</a>
+                @else
+                @can('seo_tools.view')<a href="{{ route('seo.bulk.index') }}" class="nav-link {{ request()->routeIs('seo.bulk.*') ? 'nav-active' : '' }}">Bulk SEO uploads</a>@endcan
                 <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'nav-active' : '' }}">◈ <span>Overview</span></a>
                 @foreach(['clients' => ['Clients', '◎'], 'projects' => ['Projects', '▣'], 'websites' => ['Websites', '◉']] as $module => [$label, $icon])
                     @if(Route::has($module.'.index')) @can($module.'.view')<a href="{{ route($module.'.index') }}" class="nav-link {{ request()->is($module.'*') ? 'nav-active' : '' }}">{{ $icon }} <span>{{ $label }}</span></a>@endcan @endif
@@ -36,6 +42,7 @@
                 @can('billing.view')<a href="{{ route('invoices.index') }}" class="nav-link">▧ <span>Client invoices</span></a>@endcan
                 <a href="{{ route('notifications.index') }}" class="nav-link">♧ <span>Notifications</span></a>
                 @can('agency.manage')<a href="{{ route('agency.settings') }}" class="nav-link {{ request()->routeIs('agency.settings') ? 'nav-active' : '' }}">⚙ <span>Agency settings</span></a>@endcan
+                @endcan
             @endif
         </nav>
         <div class="mt-auto rounded-xl border border-white/10 p-4"><span class="text-xs font-semibold text-orange-400">SELF-HOSTED</span><p class="mt-2 text-xs leading-5 text-gray-400">Your agency workspace.<br>One platform. Complete SEO operations.</p></div>

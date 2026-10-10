@@ -70,6 +70,86 @@ class SeoWorkTest extends TestCase
         $this->assertDatabaseHas('seo_tasks', ['id' => $task->id, 'status' => 'completed']);
     }
 
+    public function test_ai_recommendations_render_safely_and_generate_deduplicated_project_tasks(): void
+    {
+        app(TenantContext::class)->run($this->agency, function (): void {
+            $this->run->update(['tool' => 'monthly-seo-plan', 'source' => 'DeepSeek AI']);
+            $this->run->results()->first()->update(['data' => ['recommendations' => ["## Week one\n\n- **Review** page titles\n- Improve headings", '<script>alert(1)</script> [Unsafe](javascript:alert(1))']]]);
+        });
+        $this->get('/seo/runs/'.$this->run->id)->assertOk()
+            ->assertSee('<h2>Week one</h2>', false)->assertSee('<strong>Review</strong>', false)
+            ->assertDontSee('<script>alert(1)</script>', false)->assertDontSee('href="javascript:', false)
+            ->assertSee('Create tasks from AI recommendations');
+        $this->get('/seo/tasks')->assertOk()->assertSee('Generate project tasks')->assertSee('Run #'.$this->run->id);
+        $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertRedirect()->assertSessionHas('success', '2 tasks created. Existing tasks from this run were retained.');
+        $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertRedirect();
+        $this->assertDatabaseCount('seo_tasks', 2);
+        $this->assertDatabaseHas('seo_tasks', ['seo_tool_run_id' => $this->run->id, 'priority' => 'medium', 'status' => 'pending']);
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $this->get('/seo/reports/'.DB::table('reports')->value('id'))->assertOk()->assertSee('<h2>Week one</h2>', false)->assertDontSee('<script>alert(1)</script>', false);
+    }
+
+    public function test_task_generation_requires_a_completed_project_run(): void
+    {
+        app(TenantContext::class)->run($this->agency, fn () => $this->run->update(['status' => 'failed']));
+        $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertUnprocessable();
+        app(TenantContext::class)->run($this->agency, fn () => $this->run->update(['status' => 'completed', 'project_id' => null]));
+        $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertUnprocessable();
+        $this->assertDatabaseCount('seo_tasks', 0);
+    }
+
+    public function test_report_deletion_removes_private_pdf_and_archived_runs_keep_reports_visible(): void
+    {
+        Storage::fake('local');
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $id = DB::table('reports')->value('id');
+        $path = 'reports/'.$this->agency->id.'/'.$id.'/report.pdf';
+        Storage::disk('local')->put($path, '%PDF-test');
+        DB::table('reports')->where('id', $id)->update(['pdf_path' => $path, 'pdf_status' => 'completed']);
+        $this->delete('/seo/runs/'.$this->run->id)->assertRedirect();
+        $this->get('/seo/reports')->assertOk()->assertSee('SEO website audit report')->assertSee('Delete report');
+        $this->get('/seo/reports/'.$id)->assertOk()->assertSee('Delete report');
+        $this->delete('/seo/reports/'.$id)->assertRedirect(route('seo.reports.index'));
+        $this->assertDatabaseMissing('reports', ['id' => $id]);
+        Storage::disk('local')->assertMissing($path);
+        $this->get('/seo/reports/'.$id)->assertNotFound();
+    }
+
+    public function test_reports_cannot_be_deleted_during_pdf_generation_or_by_other_agencies(): void
+    {
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $id = DB::table('reports')->value('id');
+        foreach (['queued', 'running'] as $status) {
+            DB::table('reports')->where('id', $id)->update(['pdf_status' => $status]);
+            $this->delete('/seo/reports/'.$id)->assertConflict();
+            $this->assertDatabaseHas('reports', ['id' => $id]);
+        }
+        $other = Agency::create(['name' => 'Other agency']);
+        $other->users()->attach($this->owner, ['role_id' => Role::where('name', 'agency_owner')->value('id')]);
+        $this->withSession(['agency_id' => $other->id]);
+        $this->delete('/seo/reports/'.$id)->assertNotFound();
+    }
+
+    public function test_deletion_is_restricted_and_tasks_can_be_deleted_by_the_owner(): void
+    {
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $reportId = DB::table('reports')->value('id');
+        $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertRedirect();
+        $taskId = DB::table('seo_tasks')->value('id');
+        $manager = User::factory()->create();
+        $this->agency->users()->attach($manager, ['role_id' => Role::where('name', 'seo_manager')->value('id')]);
+        $this->actingAs($manager);
+        $this->delete('/seo/reports/'.$reportId)->assertForbidden();
+        $this->delete('/seo/tasks/'.$taskId)->assertForbidden();
+        $this->actingAs($this->developer);
+        $this->delete('/seo/tasks/'.$taskId)->assertForbidden();
+        $this->actingAs($this->owner);
+        $this->get('/seo/tasks')->assertOk()->assertSee('Delete task');
+        $this->delete('/seo/tasks/'.$taskId)->assertRedirect(route('seo.tasks.index'));
+        $this->assertDatabaseMissing('seo_tasks', ['id' => $taskId]);
+        $this->assertDatabaseHas('reports', ['id' => $reportId]);
+    }
+
     public function test_reports_are_snapshots_with_escaped_html_and_actual_pdf_export(): void
     {
         $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();

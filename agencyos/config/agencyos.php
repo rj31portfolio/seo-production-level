@@ -10,6 +10,6 @@ return [
         'seo_executive' => ['projects.view', 'websites.view'],
         'content_writer' => ['projects.view'],
         'developer' => ['projects.view', 'websites.view'],
-        'client' => [],
+        'client' => ['client.portal'],
     ],
 ];

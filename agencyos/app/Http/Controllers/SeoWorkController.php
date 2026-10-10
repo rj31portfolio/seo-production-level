@@ -23,12 +23,16 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SeoWorkController extends Controller
 {
-    public function tasks(Request $request): View
+    public function tasks(Request $request, ToolAccess $access): View
     {
         $request->validate(['q' => 'nullable|string|max:100', 'status' => 'nullable|in:pending,in_progress,review,completed,cancelled']);
         $tasks = SeoTask::with(['project.users', 'assignee'])->when(! $request->user()->hasPermission('tasks.assign'), fn ($q) => $q->where('assigned_to', $request->user()->id)->whereHas('project.users', fn ($q) => $q->where('users.id', $request->user()->id)))->when($request->q, fn ($q, $term) => $q->where('title', 'like', '%'.$term.'%'))->when($request->status, fn ($q, $status) => $q->where('status', $status))->orderBy('due_at')->paginate(20)->withQueryString();
 
-        return view('seo.tasks', compact('tasks'));
+        $runs = $request->user()->hasPermission('tasks.create')
+            ? $access->visibleRuns($request->user())->with('project')->whereNotNull('project_id')->where('status', 'completed')->latest()->limit(20)->get()
+            : collect();
+
+        return view('seo.tasks', compact('tasks', 'runs'));
     }
 
     public function generateTasks(SeoToolRun $run): RedirectResponse
@@ -42,14 +46,22 @@ class SeoWorkController extends Controller
             app(ToolAccess::class)->consume('task-generator');
             $created = 0;
             foreach ($run->results()->lazyById(100) as $result) {
-                foreach ($result->data['checks'] ?? [] as $check) {
+                $checks = $result->data['checks'] ?? [];
+                if (ToolRegistry::get($run->tool)['mode'] === 'ai') {
+                    foreach ($result->data['recommendations'] ?? [] as $index => $recommendation) {
+                        $checks[] = ['rule' => 'ai_recommendation_'.($index + 1), 'passed' => false, 'severity' => 'medium', 'category' => 'seo', 'recommendation' => $recommendation];
+                    }
+                }
+                foreach ($checks as $check) {
                     if ($check['passed'] || $check['severity'] === 'information') {
                         continue;
                     }
                     $key = hash('sha256', $run->id.'|'.$result->id.'|'.$check['rule']);
                     $developer = in_array($check['category'] ?? '', ['technical', 'indexability', 'schema'], true);
                     $assignee = $run->project->users()->whereHas('agencies', fn ($q) => $q->where('agencies.id', $run->agency_id)->where('agency_users.role_id', Role::where('name', $developer ? 'developer' : 'seo_executive')->value('id')))->orderBy('users.id')->first();
-                    $task = SeoTask::firstOrCreate(['deduplication_key' => $key], ['project_id' => $run->project_id, 'client_id' => $run->client_id, 'website_id' => $run->website_id, 'seo_tool_run_id' => $run->id, 'assigned_to' => $assignee?->id, 'created_by' => auth()->id(), 'title' => ucwords(str_replace('_', ' ', $check['rule'])), 'description' => $check['recommendation']."\nURL: ".($result->url ?? 'Supplied input'), 'category' => $check['category'] ?? 'seo', 'priority' => $check['severity'], 'status' => 'pending', 'due_at' => now()->addHours(48)]);
+                    $isAi = ToolRegistry::get($run->tool)['mode'] === 'ai';
+                    $title = $isAi ? mb_substr(trim(strip_tags($check['recommendation'])), 0, 200) : ucwords(str_replace('_', ' ', $check['rule']));
+                    $task = SeoTask::firstOrCreate(['deduplication_key' => $key], ['project_id' => $run->project_id, 'client_id' => $run->client_id, 'website_id' => $run->website_id, 'seo_tool_run_id' => $run->id, 'assigned_to' => $assignee?->id, 'created_by' => auth()->id(), 'title' => $title, 'description' => ($isAi ? "AI suggestion approved for task creation. Review before implementation.\n\n" : '').$check['recommendation']."\nURL: ".($result->url ?? 'Supplied input'), 'category' => $check['category'] ?? 'seo', 'priority' => $check['severity'], 'status' => 'pending', 'due_at' => now()->addHours(48)]);
                     if ($task->wasRecentlyCreated) {
                         $created++;
                         Activity::record('seo_task.created', $task);
@@ -103,7 +115,7 @@ class SeoWorkController extends Controller
 
     public function reports(Request $request, ToolAccess $access): View
     {
-        $reports = Report::whereIn('seo_tool_run_id', $access->visibleRuns($request->user())->select('seo_tool_runs.id'))->latest()->paginate(20);
+        $reports = Report::with('run')->whereIn('seo_tool_run_id', $access->visibleRuns($request->user())->withTrashed()->select('seo_tool_runs.id'))->latest()->paginate(20);
 
         return view('seo.reports', compact('reports'));
     }
@@ -113,6 +125,35 @@ class SeoWorkController extends Controller
         Gate::authorize('view', $report->run);
 
         return view('seo.report', compact('report'));
+    }
+
+    public function destroyReport(Report $report): RedirectResponse
+    {
+        Gate::authorize('view', $report->run);
+        Gate::authorize('seo_tools.delete');
+        DB::transaction(function () use ($report): void {
+            $report = Report::whereKey($report->id)->lockForUpdate()->firstOrFail();
+            abort_if(in_array($report->pdf_status, ['queued', 'running'], true), 409, 'Wait for PDF preparation to finish before deleting this report.');
+            if ($report->pdf_path && ! Storage::disk('local')->delete($report->pdf_path)) {
+                throw ValidationException::withMessages(['report' => 'The report PDF could not be deleted. Please retry.']);
+            }
+            Activity::record('seo_report.deleted', $report);
+            $report->delete();
+        });
+
+        return redirect()->route('seo.reports.index')->with('success', 'Report deleted.');
+    }
+
+    public function destroyTask(SeoTask $task): RedirectResponse
+    {
+        Gate::authorize('view', $task->project);
+        Gate::authorize('seo_tools.delete');
+        DB::transaction(function () use ($task): void {
+            Activity::record('seo_task.deleted', $task);
+            $task->delete();
+        });
+
+        return redirect()->route('seo.tasks.index')->with('success', 'Task deleted.');
     }
 
     public function html(Report $report): Response
