@@ -11,7 +11,7 @@ Implemented functionality uses real database records. No sample accounts, fake S
 - Agency registration, login, logout, throttling, password reset, password hashing and session rotation.
 - Tenant membership resolution, granular permission gates, resource policies, assigned-project restrictions, and composite tenant foreign keys.
 - Platform agency overview, suspension/reactivation, configurable client expiry thresholds.
-- Agency settings, real dashboard counts, append-only application activity trail.
+- Agency logo, contact/support settings, report colors and footer, branded workspace and snapshot PDF/HTML reports; real dashboard counts and append-only application activity trail.
 - Client, project, and website CRUD with validation, search, filters, pagination, soft removal, and team assignments.
 - Agency team creation, role changes and access revocation.
 - Independent client SEO plans and subscriptions, expiry/progress display, grace periods, renewal, extension, plan changes, suspension and cancellation.
@@ -31,8 +31,7 @@ Use PHP 8.3+ and Composer. Node 22.12+ builds frontend assets. MySQL 8+ is the i
 composer install
 cp .env.example .env
 # Configure .env privately. For local SQLite use the settings in INSTALLATION.md.
-php artisan key:generate
-php artisan migrate --seed
+php artisan agencyos:install --force
 npm ci --ignore-scripts
 npm run build
 php artisan agencyos:doctor
@@ -59,3 +58,5 @@ powershell -File scripts/test-browser.ps1
 Browser verification creates clearly named Browser Test records in `database/browser.sqlite`, separate from the application's database. The PHP feature suite uses a disposable in-memory SQLite database. CI configuration includes a MySQL 8 job; that job has not been executed in this workspace.
 
 Read [INSTALLATION.md](INSTALLATION.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md), [SECURITY.md](SECURITY.md), and [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) before extending the implementation.
+
+For a live server, follow the production steps in [INSTALLATION.md](INSTALLATION.md) and run `php artisan agencyos:doctor --production`. The repeatable installer preserves existing application keys and accounts. Production workers must process both `seo` and `default` queues for report PDFs and email delivery.

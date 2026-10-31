@@ -7,7 +7,7 @@ export default defineConfig({
     webServer: {
         command: 'node tests/Browser/server.mjs',
         url: 'http://127.0.0.1:8101/login',
-        env: { BROWSER_PORT: '8101', APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: 'D:/Working/seo/agencyos/storage/framework/testing/seo-browser.sqlite' },
+        env: { BROWSER_PORT: '8101', APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: 'D:/Working/seo/agencyos/storage/framework/testing/seo-browser.sqlite', DEEPSEEK_ENABLED: 'false' },
         reuseExistingServer: false,
     },
 });

@@ -9,9 +9,14 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Website;
 use App\Services\Activity;
+use App\Services\AgencyBranding;
 use App\Tenancy\TenantContext;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class FoundationController extends Controller
 {
@@ -50,19 +55,60 @@ class FoundationController extends Controller
         return back()->with('success', 'Agency status updated.');
     }
 
-    public function settings()
+    public function settings(): View
     {
-        return view('agency-settings', ['agency' => app(TenantContext::class)->agency()]);
+        $agency = app(TenantContext::class)->agency();
+
+        return view('agency-settings', ['agency' => $agency, 'branding' => app(AgencyBranding::class)->snapshot($agency)]);
     }
 
-    public function updateSettings(Request $request)
+    public function updateSettings(Request $request): RedirectResponse
     {
-        $data = $request->validate(['name' => 'required|string|max:255', 'timezone' => 'required|timezone', 'currency' => 'required|string|size:3|regex:/^[A-Z]{3}$/']);
-        DB::transaction(function () use ($data) {
-            $agency = app(TenantContext::class)->agency();
-            $agency->update($data);
-            Activity::record('agency.settings_updated', $agency, $data);
-        });
+        $data = $request->validate([
+            'name' => 'required|string|max:255', 'timezone' => 'required|timezone',
+            'currency' => 'required|string|size:3|regex:/^[A-Z]{3}$/',
+            'tagline' => 'nullable|string|max:160', 'address' => 'nullable|string|max:600',
+            'email' => 'nullable|email|max:255', 'phone' => 'nullable|string|max:50',
+            'website' => 'nullable|url:http,https|max:255', 'support_email' => 'nullable|email|max:255',
+            'support_url' => 'nullable|url:http,https|max:255',
+            'accent_color' => 'nullable|regex:/^#[0-9a-fA-F]{6}$/', 'report_footer' => 'nullable|string|max:300',
+            'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:1024|dimensions:max_width=1600,max_height=1600',
+            'remove_logo' => 'nullable|boolean',
+        ]);
+        if ($request->hasFile('logo') && $request->boolean('remove_logo')) {
+            throw ValidationException::withMessages(['logo' => 'Choose a replacement logo or remove the current logo.']);
+        }
+        $agency = app(TenantContext::class)->agency();
+        $newPath = null;
+        if ($request->hasFile('logo')) {
+            $newPath = $request->file('logo')->store('branding/'.$agency->id, 'local');
+            if (! $newPath) {
+                throw ValidationException::withMessages(['logo' => 'Logo storage failed. Please retry.']);
+            }
+        }
+        try {
+            $oldPath = DB::transaction(function () use ($agency, $data, $request, $newPath): ?string {
+                $locked = Agency::whereKey($agency->id)->lockForUpdate()->firstOrFail();
+                $branding = $locked->branding ?? [];
+                $oldPath = $branding['logo_path'] ?? null;
+                $branding = array_replace($branding, array_intersect_key($data, array_flip(AgencyBranding::FIELDS)));
+                if ($newPath || $request->boolean('remove_logo')) {
+                    $branding['logo_path'] = $newPath;
+                }
+                $locked->update(['name' => $data['name'], 'timezone' => $data['timezone'], 'currency' => $data['currency'], 'branding' => $branding]);
+                Activity::record('agency.settings_updated', $locked, ['fields' => array_keys($data)]);
+
+                return $oldPath;
+            });
+        } catch (\Throwable $exception) {
+            if ($newPath) {
+                Storage::disk('local')->delete($newPath);
+            }
+            throw $exception;
+        }
+        if ($oldPath && ($newPath || $request->boolean('remove_logo'))) {
+            Storage::disk('local')->delete($oldPath);
+        }
 
         return back()->with('success', 'Agency settings saved.');
     }

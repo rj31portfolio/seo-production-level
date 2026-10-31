@@ -61,6 +61,7 @@ class GenerateReportPdf implements ShouldQueue
                 $pdf->loadHtml(view('seo.report-document', compact('report'))->render());
                 $pdf->setPaper('A4');
                 $pdf->render();
+                $pdf->getCanvas()->page_text(510, 812, '{PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8, [0.39, 0.45, 0.55]);
                 $path = 'reports/'.$this->agencyId.'/'.$report->id.'/'.Str::uuid().'.pdf';
                 if (! Storage::disk('local')->put($path, $pdf->output())) {
                     throw new \RuntimeException('Private PDF storage failed.');

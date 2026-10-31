@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 test('SEO tools save actual input, export reports and work on mobile', async ({ page }) => {
-    const browserEnvironment = { ...process.env, APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: path.resolve('storage/framework/testing/seo-browser.sqlite') };
+    const browserEnvironment = { ...process.env, APP_URL: 'http://127.0.0.1:8101', DB_CONNECTION: 'sqlite', DB_DATABASE: path.resolve('storage/framework/testing/seo-browser.sqlite'), DEEPSEEK_ENABLED: 'false' };
     execFileSync(path.resolve('../.tools/php/php.exe'), ['artisan', 'queue:clear', 'database', '--queue=seo', '--force', '--no-interaction'], { cwd: process.cwd(), env: browserEnvironment });
     await page.goto('/register');
     await page.getByLabel('Your name', { exact: true }).fill('SEO Browser Owner');

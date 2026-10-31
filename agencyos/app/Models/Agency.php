@@ -6,7 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Agency extends Model
 {
-    protected $fillable = ['name', 'status', 'timezone', 'currency'];
+    protected $fillable = ['name', 'status', 'timezone', 'currency', 'branding'];
+
+    protected function casts(): array
+    {
+        return ['branding' => 'array'];
+    }
 
     public function users()
     {

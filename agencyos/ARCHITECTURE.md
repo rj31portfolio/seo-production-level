@@ -23,3 +23,4 @@ Permissions reside in relational roles/permissions tables. Gates check actual da
 `OperationsController` uses an allowlisted module definition for clients/projects/websites. Resource model classes and validation fields cannot be selected by client input. Parent IDs are validated against scoped records and project websites must belong to the selected client.
 
 Future crawler, AI, ranking providers, exports, task automation and SaaS billing are separate modules. They do not currently exist; extending the application must follow the original sequential test gate.
+

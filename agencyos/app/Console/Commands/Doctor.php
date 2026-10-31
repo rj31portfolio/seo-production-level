@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class Doctor extends Command
 {
-    protected $signature = 'agencyos:doctor';
+    protected $signature = 'agencyos:doctor {--production : Fail when production configuration is incomplete}';
 
     protected $description = 'Check runtime and deployment prerequisites without printing credentials';
 
@@ -15,7 +15,7 @@ class Doctor extends Command
     {
         $ok = version_compare(PHP_VERSION, '8.3', '>=');
         $this->line('PHP '.PHP_VERSION.': '.($ok ? 'OK' : 'ERROR: 8.3+ required'));
-        foreach (['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'session', 'tokenizer', 'xml', 'zip'] as $ext) {
+        foreach (['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'gd', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'session', 'tokenizer', 'xml', 'zip'] as $ext) {
             $loaded = extension_loaded($ext);
             $this->line($ext.': '.($loaded ? 'OK' : 'ERROR'));
             $ok = $ok && $loaded;
@@ -50,6 +50,31 @@ class Doctor extends Command
         }
         if (config('mail.default') === 'log') {
             $this->warn('Mail uses the local log driver. Configure SMTP for password-reset delivery.');
+        }
+        if ($this->option('production')) {
+            $checks = [
+                'Production environment' => app()->environment('production'),
+                'Debug disabled' => ! config('app.debug'),
+                'HTTPS application URL' => str_starts_with((string) config('app.url'), 'https://'),
+                'Secure session cookies' => (bool) config('session.secure'),
+                'Deliverable mail transport' => ! in_array(config('mail.default'), ['log', 'array'], true),
+                'Asynchronous queue backend' => ! in_array(config('queue.default'), ['sync', 'null'], true),
+                'Production assets built' => is_file(public_path('build/manifest.json')) && ! is_file(public_path('hot')),
+                'MySQL production database' => config('database.default') === 'mysql',
+            ];
+            try {
+                $migrator = app('migrator');
+                $checks['All migrations applied'] = $migrator->repositoryExists()
+                    && array_diff(array_keys($migrator->getMigrationFiles(database_path('migrations'))), $migrator->getRepository()->getRan()) === [];
+                $checks['Permissions initialized'] = DB::table('roles')->where('name', 'agency_owner')->exists();
+                $checks['Platform administrator exists'] = DB::table('users')->where('is_super_admin', true)->exists();
+            } catch (\Throwable) {
+                $checks['Database installation complete'] = false;
+            }
+            foreach ($checks as $label => $passed) {
+                $this->line($label.': '.($passed ? 'OK' : 'ERROR'));
+                $ok = $ok && $passed;
+            }
         }
         $this->line('Queue backend: '.config('queue.default').' (worker execution must be configured separately)');
         $this->line('Scheduler execution must be configured separately; no heartbeat is currently tracked.');

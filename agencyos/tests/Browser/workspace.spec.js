@@ -27,12 +27,26 @@ test('real agency onboarding and responsive workspace', async ({ page }) => {
     await page.getByRole('button', { name: 'Create subscription and invoice' }).click();
     await expect(page.getByRole('heading', { name: 'Browser Test Client · SEO subscription' })).toBeVisible();
     await page.screenshot({ path: 'test-results/subscription-desktop.png', fullPage: true });
+    await page.goto('/agency/settings');
+    await page.getByLabel('Tagline', { exact: true }).fill('Built for measurable growth');
+    await page.getByLabel('Business address').fill('42 Business Road\nMumbai, India');
+    await page.getByLabel('Business email').fill('hello@example.com');
+    await page.getByLabel('Support email', { exact: true }).fill('help@example.com');
+    await page.getByLabel('Support website').fill('https://example.com/support');
+    await page.getByLabel('Report accent color').fill('#2563eb');
+    await page.getByLabel('Report footer message').fill('Prepared for your growth.');
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await expect(page.getByText('Agency settings saved.')).toBeVisible();
+    await expect(page.getByLabel('Business email')).toHaveValue('hello@example.com');
+    await expect(page.getByRole('link', { name: 'Help & support' })).toHaveAttribute('href', 'https://example.com/support');
+    await page.screenshot({ path: 'test-results/agency-branding-desktop.png', fullPage: true });
     for (const path of ['/dashboard', '/clients', '/projects', '/websites', '/employees', '/client-subscriptions', '/invoices', '/notifications', '/agency/settings']) {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
+    await page.screenshot({ path: 'test-results/agency-branding-mobile.png', fullPage: true });
     await page.goto('/dashboard');
     const csrfResponse = await page.request.post('/agency/settings', { form: { _method: 'PATCH', name: 'Unprotected change', timezone: 'UTC', currency: 'USD' } });
     expect(csrfResponse.status()).toBe(419);

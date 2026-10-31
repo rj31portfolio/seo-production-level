@@ -1,18 +1,27 @@
+@php($reportAccent = $report->snapshot['branding']['accent_color'] ?? '#ea580c')
 <style>
+    .audit-report .report-brand { width: 100%; margin-bottom: 24px; table-layout: fixed; }
+    .audit-report .report-brand td { border: 0; padding: 0 12px 16px 0; vertical-align: top; }
+    .audit-report .brand-contact { text-align: right; font-size: 10px; color: #64748b; width: 45%; }
+    .audit-report .brand-logo { display: block; max-width: 180px; max-height: 65px; margin-bottom: 10px; }
+    .audit-report .brand-name { font-size: 18px; font-weight: bold; color: #0f172a; }
+    .audit-report .brand-tagline { font-size: 11px; color: #64748b; }
+    .audit-report .brand-address { white-space: pre-line; }
+    .audit-report .report-support { margin-top: 32px; padding-top: 16px; border-top: 2px solid {{ $reportAccent }}; font-size: 11px; color: #64748b; }
     .audit-report { color: #334155; line-height: 1.65; font-size: 13px; }
     .audit-report h1 { font-size: 28px; font-weight: 700; color: #0f172a; margin: 10px 0; }
     .audit-report h2 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; }
     .audit-report h3 { font-size: 16px; font-weight: 600; margin: 14px 0 8px; }
     .audit-report p { margin: 8px 0; overflow-wrap: anywhere; word-wrap: break-word; }
-    .audit-report .report-cover { border-bottom: 3px solid #ea580c; padding-bottom: 20px; }
-    .audit-report .eyebrow { color: #c2410c; font-weight: 700; font-size: 12px; }
+    .audit-report .report-cover { border-bottom: 3px solid {{ $reportAccent }}; padding-bottom: 20px; }
+    .audit-report .eyebrow { color: {{ $reportAccent }}; font-weight: 700; font-size: 12px; }
     .audit-report .muted { color: #64748b; font-size: 12px; }
     .audit-report .table-wrap { overflow-x: auto; margin: 12px 0; }
     .audit-report table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .audit-report th { background: #f1f5f9; color: #475569; font-weight: 600; }
     .audit-report th, .audit-report td { border-bottom: 1px solid #e2e8f0; padding: 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-wrap: break-word; }
     .audit-report .kpis td { background: #fff7ed; width: 25%; }
-    .audit-report .number { display: block; font-size: 24px; font-weight: 700; color: #9a3412; }
+    .audit-report .number { display: block; font-size: 24px; font-weight: 700; color: {{ $reportAccent }}; }
     .audit-report .issue { border-left: 3px solid #cbd5e1; padding: 4px 14px; margin: 18px 0; }
     .audit-report .priority-critical, .audit-report .priority-high { border-color: #dc2626; }
     .audit-report .priority-medium { border-color: #ea580c; }
@@ -24,6 +33,7 @@
     @media print { .audit-report { font-size: 11px; } .audit-report thead { display: table-header-group; } .audit-report tr { page-break-inside: avoid; } .audit-report h2, .audit-report h3 { page-break-after: avoid; } }
 </style>
 <div class="audit-report">
+@include('seo.report-brand')
 <div class="report-cover">
     <p class="eyebrow">{{ $report->snapshot['agency'] }} / SEO REPORT</p>
     <h1>{{ $report->title }}</h1>
@@ -91,4 +101,9 @@
 @if($row['error'])<p>Data unavailable: {{ $row['error'] }}</p>@endif @if($row['checks'])<table><thead><tr><th>Finding</th><th>Status</th><th>Recommendation</th></tr></thead><tbody>@foreach($row['checks'] as $check)<tr><td>{{ ucwords(str_replace('_',' ',$check['rule'])) }}</td><td>{{ $check['passed'] ? 'Passed' : ucfirst($check['severity']) }}</td><td>{{ $check['recommendation'] }}</td></tr>@endforeach</tbody></table>@endif</section>@endforeach
 @foreach($report->snapshot['rows'] as $row) @include('seo.recommendations', ['recommendations' => $row['recommendations'] ?? [], 'isAi' => $report->snapshot['source'] === 'DeepSeek AI']) @if(!empty($row['keywords']))<h2>Keyword analysis</h2><table><thead><tr><th>Keyword</th><th>Intent</th><th>Cluster</th></tr></thead><tbody>@foreach($row['keywords'] as $keyword)<tr><td>{{ $keyword['keyword'] }}</td><td>{{ $keyword['intent'] }}</td><td>{{ $keyword['cluster'] }}</td></tr>@endforeach</tbody></table>@endif @foreach($row['notes'] ?? [] as $note)<p>{{ $note }}</p>@endforeach @endforeach
 <h2>Data scope and next steps</h2>@foreach($report->snapshot['missing_data'] as $note)<p>{{ $note }}</p>@endforeach<p>SEO AgencyOS Score is an internal diagnostic score and is not an official Google score. Review recommendations before implementation and rerun an audit after changes.</p>
+<div class="report-support">
+@if(!empty($report->snapshot['branding']['report_footer']))<p>{{ $report->snapshot['branding']['report_footer'] }}</p>@endif
+@if(!empty($report->snapshot['branding']['support_email']))<p>Support: {{ $report->snapshot['branding']['support_email'] }}</p>@endif
+@if(!empty($report->snapshot['branding']['support_url']))<p>Help center: {{ $report->snapshot['branding']['support_url'] }}</p>@endif
+</div>
 </div>

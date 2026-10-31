@@ -3,12 +3,13 @@
 namespace App\Services\Seo;
 
 use App\Models\SeoToolRun;
+use App\Services\AgencyBranding;
 use App\Tenancy\TenantContext;
 
 class ReportBuilder
 {
     /**
-     * @return array{agency: string, project: ?string, source: string, collected_at: string, generated_at: string, target_url: ?string, summary: array, rows: array, analysis: array, missing_data: list<string>}
+     * @return array{agency: string, branding: array, project: ?string, source: string, collected_at: string, generated_at: string, target_url: ?string, summary: array, rows: array, analysis: array, missing_data: list<string>}
      */
     public function snapshot(SeoToolRun $run): array
     {
@@ -19,6 +20,7 @@ class ReportBuilder
 
         return [
             'agency' => app(TenantContext::class)->agency()->name,
+            'branding' => app(AgencyBranding::class)->snapshot(app(TenantContext::class)->agency()),
             'project' => $run->project?->name,
             'source' => $run->source,
             'collected_at' => ($run->finished_at ?? $run->created_at)->toIso8601String(),

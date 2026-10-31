@@ -1,9 +1,13 @@
+@php
+    $workspaceAgency = app(\App\Tenancy\TenantContext::class)->agency();
+    $workspaceBrand = $workspaceAgency ? app(\App\Services\AgencyBranding::class)->snapshot($workspaceAgency) : null;
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Workspace') · SEO AgencyOS</title>
+    <title>@yield('title', 'Workspace') · {{ $workspaceAgency?->name ?? 'SEO AgencyOS' }}</title>
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -12,7 +16,10 @@
 <div class="min-h-screen lg:pl-64">
     <button x-cloak x-show="mobileMenu" @click="mobileMenu = false" class="fixed inset-0 z-30 bg-black/40 lg:hidden" aria-label="Close navigation"></button>
     <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col overflow-y-auto bg-[#14171e] p-5 transition-transform lg:translate-x-0" :class="mobileMenu ? 'translate-x-0' : '-translate-x-full'">
-        <a href="/" class="mb-10 flex items-center gap-3 text-white"><span class="grid h-9 w-9 place-items-center rounded-lg bg-orange-600 text-xl font-bold">S</span><span class="text-lg font-bold tracking-tight">SEO Agency<span class="text-orange-400">OS</span></span></a>
+        <a href="/" class="mb-10 flex items-center gap-3 text-white">
+            @if(!empty($workspaceBrand['logo_data']))<img src="{{ $workspaceBrand['logo_data'] }}" alt="{{ $workspaceAgency->name }} logo" class="max-h-14 max-w-48 rounded-lg bg-white p-2 object-contain">
+            @else<span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange-600 text-xl font-bold">{{ mb_substr($workspaceAgency?->name ?? 'S', 0, 1) }}</span><span class="text-lg font-bold tracking-tight">{{ $workspaceAgency?->name ?? 'SEO AgencyOS' }}</span>@endif
+        </a>
         <p class="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[.2em] text-gray-500">Workspace</p>
         <nav class="space-y-1">
             @if(auth()->user()->is_super_admin)
@@ -45,7 +52,10 @@
                 @endcan
             @endif
         </nav>
-        <div class="mt-auto rounded-xl border border-white/10 p-4"><span class="text-xs font-semibold text-orange-400">SELF-HOSTED</span><p class="mt-2 text-xs leading-5 text-gray-400">Your agency workspace.<br>One platform. Complete SEO operations.</p></div>
+        <div class="mt-auto rounded-xl border border-white/10 p-4"><span class="text-xs font-semibold text-orange-400">{{ $workspaceAgency?->name ?? 'SEO AgencyOS' }}</span><p class="mt-2 text-xs leading-5 text-gray-400">{{ $workspaceBrand['tagline'] ?? 'Your agency workspace. One platform. Complete SEO operations.' }}</p>
+        @if(!empty($workspaceBrand['support_email']))<a href="mailto:{{ $workspaceBrand['support_email'] }}" class="mt-3 block break-all text-xs text-white">{{ $workspaceBrand['support_email'] }}</a>@endif
+        @if(!empty($workspaceBrand['support_url']))<a href="{{ $workspaceBrand['support_url'] }}" target="_blank" rel="noopener noreferrer" class="mt-2 block text-xs text-orange-300">Help & support ↗</a>@endif
+        </div>
         <div class="mt-5 flex items-center gap-3 border-t border-white/10 pt-5"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-700 text-sm font-semibold text-white">{{ mb_substr(auth()->user()->name, 0, 1) }}</span><div class="min-w-0"><p class="truncate text-sm text-white">{{ auth()->user()->name }}</p><p class="truncate text-xs text-gray-500">{{ auth()->user()->email }}</p></div></div>
     </aside>
     <header class="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 lg:px-9">

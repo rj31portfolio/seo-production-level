@@ -13,6 +13,7 @@ use App\Models\Website;
 use App\Tenancy\TenantContext;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -152,20 +153,27 @@ class SeoWorkTest extends TestCase
 
     public function test_reports_are_snapshots_with_escaped_html_and_actual_pdf_export(): void
     {
+        Storage::fake('local');
+        $logoPath = UploadedFile::fake()->image('agency.jpg', 240, 80)->store('branding/'.$this->agency->id, 'local');
+        $this->agency->update(['branding' => ['logo_path' => $logoPath, 'email' => 'agency@example.com', 'address' => '42 Business Road', 'support_email' => 'support@example.com', 'accent_color' => '#123abc', 'report_footer' => 'Prepared for your growth.']]);
         $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
         $id = DB::table('reports')->value('id');
         $this->get('/seo/reports')->assertOk();
         $this->get('/seo/reports/'.$id)->assertOk()->assertSee('32');
         $html = $this->get('/seo/reports/'.$id.'/html')->assertOk()->assertDownload('seo-report-'.$id.'.html');
         $html->assertDontSee('<script>alert(1)</script>', false)->assertSee('&lt;script&gt;', false);
+        $html->assertSee('data:image/jpeg;base64,', false)->assertSee('agency@example.com')->assertSee('42 Business Road')->assertSee('support@example.com')->assertSee('#123abc')->assertSee('Prepared for your growth.');
+        $this->agency->update(['name' => 'New agency identity', 'branding' => null]);
+        Storage::disk('local')->delete($logoPath);
+        $this->get('/seo/reports/'.$id.'/html')->assertSee('data:image/jpeg;base64,', false)->assertSee('42 Business Road')->assertDontSee('New agency identity');
         Queue::fake();
-        Storage::fake('local');
         $this->get('/seo/reports/'.$id.'/pdf')->assertStatus(409);
         $this->post('/seo/reports/'.$id.'/pdf')->assertRedirect();
         Queue::assertPushed(GenerateReportPdf::class);
         app()->call([new GenerateReportPdf($this->agency->id, $id), 'handle']);
         $pdf = $this->get('/seo/reports/'.$id.'/pdf')->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->assertStringStartsWith('%PDF-', file_get_contents($pdf->baseResponse->getFile()->getPathname()));
+        $this->assertStringContainsString('/Subtype /Image', file_get_contents($pdf->baseResponse->getFile()->getPathname()));
         app(TenantContext::class)->run($this->agency, fn () => $this->run->results()->first()->update(['data' => ['metrics' => ['word_count' => 999]]]));
         $this->get('/seo/reports/'.$id)->assertSee('32')->assertDontSee('999');
         $other = Agency::create(['name' => 'Other']);
@@ -174,6 +182,17 @@ class SeoWorkTest extends TestCase
         $this->get('/seo/reports/'.$id)->assertNotFound();
         $this->get('/seo/reports/'.$id.'/pdf')->assertNotFound();
         $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertNotFound();
+    }
+
+    public function test_reports_saved_before_branding_was_added_remain_readable(): void
+    {
+        $this->post('/seo/runs/'.$this->run->id.'/report')->assertRedirect();
+        $record = DB::table('reports')->first();
+        $snapshot = json_decode($record->snapshot, true);
+        unset($snapshot['branding']);
+        DB::table('reports')->where('id', $record->id)->update(['snapshot' => json_encode($snapshot)]);
+        $this->get('/seo/reports/'.$record->id)->assertOk()->assertSee('Report agency')->assertSee('Executive summary');
+        $this->get('/seo/reports/'.$record->id.'/html')->assertOk()->assertSee('Report agency')->assertDontSee('data:image/');
     }
 
     public function test_report_prioritizes_grouped_findings_retains_duplicates_and_excludes_unavailable_scores(): void
