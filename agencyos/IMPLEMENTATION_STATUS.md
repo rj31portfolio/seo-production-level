@@ -2,6 +2,8 @@
 
 Requests are preserved in `docs/REQUEST.md` and `docs/SEO_TOOLS_REQUEST.md`. The application is a working development implementation; it is **not yet the complete production-ready commercial system described in those requests**.
 
+Fresh deployments now support a private-key-protected two-step browser installer, an upload-ready release ZIP with production dependencies/assets, new production environment generation, transactional initial administrator/agency provisioning and a permanent installation lock. The MySQL-specific connection/version checks still need validation against a live MySQL 8 hosting environment; automated provisioning tests use isolated SQLite databases.
+
 | Area | Working functionality | Outstanding work |
 | --- | --- | --- |
 | Foundation/operations | Authentication/password reset, agency memberships, default roles/permissions, scoped models/policies, agency status/settings, employee and client/project/website management, assigned-project access, activity logging, private logo/contact/support branding, repeatable CLI installer and strict production configuration checks | Email verification, client onboarding/private files, live website ownership verification, configurable role editor, REST tokens/APIs and further production hardening |

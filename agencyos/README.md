@@ -6,6 +6,10 @@ This repository contains a tested initial implementation of the supplied commerc
 
 Implemented functionality uses real database records. No sample accounts, fake SEO scores, invented rankings, external API credentials, or decorative feature buttons are seeded.
 
+## Install on your live domain
+
+Upload the clean release ZIP, point your HTTPS domain at `agencyos/public`, and open `/install`. **Step 1:** enter the private setup key, live domain and empty MySQL database details. **Step 2:** create your administrator and agency, with optional SMTP settings. Setup creates the schema and production environment, then locks itself. The release includes production dependencies and built assets; no Node/Composer installation is needed on the hosting server when using that ZIP. See [INSTALLATION.md](INSTALLATION.md) for hosting prerequisites, worker/cron setup and release packaging.
+
 ## Current functionality
 
 - Agency registration, login, logout, throttling, password reset, password hashing and session rotation.

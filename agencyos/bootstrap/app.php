@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\InstallationMode;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,11 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(InstallationMode::class);
         $middleware->alias(['tenant' => ResolveTenant::class]);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveTenant::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->dontFlash(['api_key']);
+        $exceptions->dontFlash(['api_key', 'db_password', 'mail_password', 'setup_token']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

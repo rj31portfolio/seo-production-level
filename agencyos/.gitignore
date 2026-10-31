@@ -24,6 +24,9 @@
 /test-results/
 /playwright-report/
 /database/browser.sqlite
+/storage/app/releases/
+/storage/app/private/installer/
+/.env.*.tmp
 _ide_helper.php
 Homestead.json
 Homestead.yaml

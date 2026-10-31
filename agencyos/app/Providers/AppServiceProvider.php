@@ -9,6 +9,7 @@ use App\Models\Website;
 use App\Policies\OperationalPolicy;
 use App\Policies\SeoToolRunPolicy;
 use App\Services\Seo\ToolRegistry;
+use App\Services\WebInstaller;
 use App\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\DevCommands;
@@ -31,6 +32,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (app(WebInstaller::class)->enabled()) {
+            config(['cache.limiter' => 'file']);
+        }
         if ($this->app->runningInConsole()) {
             DevCommands::register('"'.PHP_BINARY.'" artisan serve', 'server');
             DevCommands::register('"'.PHP_BINARY.'" artisan queue:work --queue=seo,default --sleep=3 --tries=1 --timeout=1800 --memory=384', 'queue');

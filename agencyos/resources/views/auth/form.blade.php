@@ -12,6 +12,7 @@
         <h2 class="text-3xl font-semibold tracking-tight">{{ ['login'=>'Welcome back', 'register'=>'Create your agency', 'forgot'=>'Forgot your password?', 'reset'=>'Set a new password'][$mode] }}</h2>
         <p class="mb-8 mt-3 text-sm text-gray-500">{{ ['login'=>'Sign in to your agency workspace.', 'register'=>'Set up a secure workspace for your team.', 'forgot'=>'Enter your email to request a reset link.', 'reset'=>'Use at least 12 characters, mixed case and a number.'][$mode] }}</p>
         @include('partials.messages')
+        @if($mode === 'login' && request('installed') === '1')<div class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800" role="status">Installation complete. Sign in with your administrator account. Setup is now locked.</div>@endif
         <form method="POST" action="{{ ['login'=>'/login','register'=>'/register','forgot'=>'/forgot-password','reset'=>'/reset-password'][$mode] }}" class="space-y-5" x-data="{ submitting: false }" @submit="submitting = true">@csrf
             @if($mode === 'register')
             <div><label for="name" class="label">Your name</label><input class="input" id="name" name="name" value="{{ old('name') }}" required maxlength="255" autocomplete="name"></div>

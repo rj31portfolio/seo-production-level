@@ -8,6 +8,7 @@ use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\ClientSubscriptionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FoundationController;
+use App\Http\Controllers\InstallationController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\RankingController;
@@ -17,6 +18,10 @@ use App\Http\Controllers\SeoToolsController;
 use App\Http\Controllers\SeoWorkController;
 use App\Http\Controllers\ToolPlanController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/install', [InstallationController::class, 'show'])->name('install.show');
+Route::post('/install/database', [InstallationController::class, 'database'])->middleware('throttle:5,1')->name('install.database');
+Route::post('/install/finish', [InstallationController::class, 'finish'])->middleware('throttle:5,1')->name('install.finish');
 
 Route::get('/', fn () => redirect(auth()->check() ? (auth()->user()->is_super_admin ? '/super-admin' : '/dashboard') : '/login'));
 Route::middleware('guest')->group(function () {
