@@ -4,15 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Agency;
 use App\Models\User;
-use App\Services\WebInstaller;
 use App\Providers\AppServiceProvider;
-use Illuminate\Cache\RateLimiter as CacheRateLimiter;
-use Illuminate\Support\Facades\RateLimiter;
+use App\Services\WebInstaller;
 use Dotenv\Dotenv;
+use Illuminate\Cache\RateLimiter as CacheRateLimiter;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -99,7 +99,7 @@ class WebInstallerTest extends TestCase
         config(['cache.default' => 'database', 'database.connections.unconfigured' => ['driver' => 'sqlite', 'database' => $this->temporary.'/does-not-exist.sqlite'], 'database.default' => 'unconfigured']);
         app()->forgetInstance(CacheRateLimiter::class);
         RateLimiter::clearResolvedInstance(CacheRateLimiter::class);
-        app(AppServiceProvider::class)->boot();
+        (new AppServiceProvider(app()))->boot();
         $this->assertSame('file', config('cache.limiter'));
         $this->post('/install/database', array_replace($this->database(), ['setup_token' => 'wrong']))->assertSessionHasErrors('setup_token');
         $this->assertFileDoesNotExist($this->temporary.'/.env');
