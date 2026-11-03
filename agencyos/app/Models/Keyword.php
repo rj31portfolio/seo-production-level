@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Keyword extends TenantModel
 {
+    protected $casts = ['project_id' => 'integer'];
+
     use HasFactory;
 
     protected $guarded = ['id', 'agency_id'];

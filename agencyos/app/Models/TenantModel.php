@@ -9,6 +9,12 @@ use LogicException;
 
 abstract class TenantModel extends Model
 {
+    /** @return array<string, string> */
+    public function getCasts(): array
+    {
+        return array_merge(['agency_id' => 'integer'], parent::getCasts());
+    }
+
     protected static function booted(): void
     {
         static::addGlobalScope('agency', fn (Builder $q) => $q->where($q->getModel()->qualifyColumn('agency_id'), app(TenantContext::class)->id()));

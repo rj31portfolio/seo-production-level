@@ -13,10 +13,7 @@ class SeoTask extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['due_at' => 'datetime', 'completed_at' => 'datetime'];
-    }
+    protected $casts = ['project_id' => 'integer', 'client_id' => 'integer', 'website_id' => 'integer', 'seo_tool_run_id' => 'integer', 'assigned_to' => 'integer', 'created_by' => 'integer', 'due_at' => 'datetime', 'completed_at' => 'datetime'];
 
     public function project(): BelongsTo
     {

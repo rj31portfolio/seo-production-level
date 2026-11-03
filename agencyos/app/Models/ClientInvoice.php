@@ -6,10 +6,7 @@ class ClientInvoice extends TenantModel
 {
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['due_date' => 'date', 'amount_minor' => 'integer'];
-    }
+    protected $casts = ['client_id' => 'integer', 'client_subscription_id' => 'integer', 'due_date' => 'date', 'amount_minor' => 'integer'];
 
     public function client()
     {

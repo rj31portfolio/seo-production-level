@@ -19,7 +19,7 @@ class InstallationController extends Controller
     public function database(Request $request, WebInstaller $installer): RedirectResponse
     {
         $data = $request->validate([
-            'setup_token' => 'required|string|max:128', 'app_url' => 'required|url:https|max:255',
+            'setup_token' => 'required|string|max:128', 'app_url' => 'required|url|starts_with:https://|max:255',
             'db_host' => ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9.:-]+$/'],
             'db_port' => 'required|integer|min:1|max:65535', 'db_database' => 'required|string|max:64|regex:/^[a-zA-Z0-9_-]+$/',
             'db_username' => ['required', 'string', 'max:100', 'not_regex:/[\r\n\x00]/'],

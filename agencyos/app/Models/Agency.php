@@ -8,10 +8,7 @@ class Agency extends Model
 {
     protected $fillable = ['name', 'status', 'timezone', 'currency', 'branding'];
 
-    protected function casts(): array
-    {
-        return ['branding' => 'array'];
-    }
+    protected $casts = ['branding' => 'array'];
 
     public function users()
     {

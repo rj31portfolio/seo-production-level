@@ -10,10 +10,7 @@ class Project extends TenantModel
 
     protected $fillable = ['client_id', 'website_id', 'name', 'type', 'start_date', 'target_locations', 'strategy', 'goals', 'notes', 'status'];
 
-    protected function casts(): array
-    {
-        return ['start_date' => 'date'];
-    }
+    protected $casts = ['client_id' => 'integer', 'website_id' => 'integer', 'start_date' => 'date'];
 
     public function client()
     {

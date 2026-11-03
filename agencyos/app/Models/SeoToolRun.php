@@ -17,10 +17,7 @@ class SeoToolRun extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['input' => 'array', 'summary' => 'array', 'started_at' => 'datetime', 'finished_at' => 'datetime'];
-    }
+    protected $casts = ['user_id' => 'integer', 'client_id' => 'integer', 'project_id' => 'integer', 'website_id' => 'integer', 'processed' => 'integer', 'discovered' => 'integer', 'input' => 'array', 'summary' => 'array', 'started_at' => 'datetime', 'finished_at' => 'datetime'];
 
     public function results(): HasMany
     {

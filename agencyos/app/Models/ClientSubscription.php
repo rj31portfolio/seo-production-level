@@ -6,10 +6,7 @@ class ClientSubscription extends TenantModel
 {
     protected $fillable = ['client_id', 'client_plan_id', 'starts_at', 'expires_at', 'grace_days', 'expiry_mode', 'status', 'auto_renew', 'notes'];
 
-    protected function casts(): array
-    {
-        return ['starts_at' => 'datetime', 'expires_at' => 'datetime', 'auto_renew' => 'boolean'];
-    }
+    protected $casts = ['client_id' => 'integer', 'client_plan_id' => 'integer', 'grace_days' => 'integer', 'starts_at' => 'datetime', 'expires_at' => 'datetime', 'auto_renew' => 'boolean'];
 
     public function client()
     {

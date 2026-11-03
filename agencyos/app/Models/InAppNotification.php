@@ -6,8 +6,5 @@ class InAppNotification extends TenantModel
 {
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['read_at' => 'datetime'];
-    }
+    protected $casts = ['user_id' => 'integer', 'read_at' => 'datetime'];
 }

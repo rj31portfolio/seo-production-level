@@ -1,15 +1,15 @@
 $appRoot = Split-Path -Parent $PSScriptRoot
-$localPhpDirectory = Join-Path (Split-Path -Parent $appRoot) '.tools\php'
+$localPhpDirectory = Join-Path $appRoot 'storage\framework\testing\php80'
 $localPhpExecutable = Join-Path $localPhpDirectory 'php.exe'
 
 if (-not (Test-Path -LiteralPath $localPhpExecutable)) {
-    Write-Error 'The local PHP runtime was not found. Install PHP 8.4 and add its directory to PATH.'
-    return
+    $localPhpExecutable = (Get-Command php -ErrorAction Stop).Source
+    $localPhpDirectory = Split-Path -Parent $localPhpExecutable
 }
 
 $phpVersionId = & $localPhpExecutable -r 'echo PHP_VERSION_ID;'
-if ($LASTEXITCODE -ne 0 -or [int]$phpVersionId -lt 80400) {
-    Write-Error 'The local PHP runtime must be PHP 8.4 or newer.'
+if ($LASTEXITCODE -ne 0 -or [int]$phpVersionId -lt 80002) {
+    Write-Error 'The PHP runtime must be PHP 8.0.2 or newer.'
     return
 }
 

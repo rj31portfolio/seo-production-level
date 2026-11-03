@@ -13,10 +13,7 @@ class SeoToolResult extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['data' => 'array'];
-    }
+    protected $casts = ['seo_tool_run_id' => 'integer', 'data' => 'array'];
 
     public function run(): BelongsTo
     {

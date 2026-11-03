@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Backlink extends TenantModel
 {
+    protected $casts = ['project_id' => 'integer', 'user_id' => 'integer'];
+
     use HasFactory;
 
     protected $guarded = ['id', 'agency_id'];

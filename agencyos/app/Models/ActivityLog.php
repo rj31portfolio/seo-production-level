@@ -10,10 +10,7 @@ class ActivityLog extends Model
 
     protected $guarded = ['id'];
 
-    protected function casts(): array
-    {
-        return ['changes' => 'array', 'created_at' => 'datetime'];
-    }
+    protected $casts = ['agency_id' => 'integer', 'user_id' => 'integer', 'subject_id' => 'integer', 'changes' => 'array', 'created_at' => 'datetime'];
 
     public function user()
     {

@@ -10,10 +10,7 @@ class ClientSubscriptionHistory extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['before' => 'array', 'after' => 'array', 'created_at' => 'datetime'];
-    }
+    protected $casts = ['client_subscription_id' => 'integer', 'changed_by' => 'integer', 'before' => 'array', 'after' => 'array', 'created_at' => 'datetime'];
 
     public function user()
     {

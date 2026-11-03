@@ -80,7 +80,7 @@ class SeoToolsController extends Controller
         } elseif ($definition['mode'] === 'text') {
             $rules['content'] = 'required|string|max:100000';
         } else {
-            $rules['url'] = 'required|url:http,https|max:2048';
+            $rules['url'] = 'required|url|starts_with:http://,https://|max:2048';
         }
         $data = $request->validate($rules);
         if ($tool === 'local-seo') {

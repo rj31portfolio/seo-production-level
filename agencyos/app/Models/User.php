@@ -5,34 +5,30 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Tenancy\TenantContext;
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    protected $attributes = ['is_active' => true, 'is_super_admin' => false];
-
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
+    protected $fillable = ['name', 'email', 'password'];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected $attributes = ['is_active' => true, 'is_super_admin' => false];
+
+    protected $casts = [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
             'is_super_admin' => 'boolean',
             'is_active' => 'boolean',
         ];
+
+    public function setPasswordAttribute(string $password): void
+    {
+        $this->attributes['password'] = password_get_info($password)['algo'] !== null
+            ? $password : \Illuminate\Support\Facades\Hash::make($password);
     }
 
     public function agencies()

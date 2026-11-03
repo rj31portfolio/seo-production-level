@@ -37,7 +37,7 @@ class BacklinkController extends Controller
 
     private function rules(): array
     {
-        return ['source_url' => 'required|url:http,https|max:2048', 'target_url' => 'required|url:http,https|max:2048', 'anchor' => 'nullable|string|max:300', 'campaign' => 'nullable|string|max:150'];
+        return ['source_url' => 'required|url|starts_with:http://,https://|max:2048', 'target_url' => 'required|url|starts_with:http://,https://|max:2048', 'anchor' => 'nullable|string|max:300', 'campaign' => 'nullable|string|max:150'];
     }
 
     private function save(Project $project, array $data, string $source): void

@@ -8,7 +8,7 @@
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Workspace') · {{ $workspaceAgency?->name ?? 'SEO AgencyOS' }}</title>
-    @fonts
+    {{ app(\App\Services\PublicAssetUrl::class)->fonts() }}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#f7f8fa] font-sans text-gray-900 antialiased" x-data="{ mobileMenu: false }">

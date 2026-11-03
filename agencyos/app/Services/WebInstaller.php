@@ -35,7 +35,7 @@ class WebInstaller
 
     public function requirements(): array
     {
-        $checks = ['PHP 8.3 or newer' => version_compare(PHP_VERSION, '8.3', '>='), 'Built frontend assets' => is_file(public_path('build/manifest.json')) && ! is_file(public_path('hot')), 'Configuration cache cleared' => ! app()->configurationIsCached()];
+        $checks = ['PHP 8.0.2 or newer' => version_compare(PHP_VERSION, '8.0.2', '>='), 'Built frontend assets' => is_file(public_path('build/manifest.json')) && ! is_file(public_path('hot')), 'Configuration cache cleared' => ! app()->configurationIsCached()];
         foreach (['curl', 'dom', 'fileinfo', 'gd', 'mbstring', 'openssl', 'pdo_mysql', 'xml', 'zip'] as $extension) {
             $checks['PHP '.$extension] = extension_loaded($extension);
         }
@@ -59,8 +59,8 @@ class WebInstaller
         DB::purge('installation');
         try {
             $version = DB::selectOne('SELECT VERSION() AS version')->version;
-            if (str_contains($version, 'MariaDB') || version_compare($version, '8.0', '<')) {
-                throw ValidationException::withMessages(['db_database' => 'Use a MySQL 8 or newer database.']);
+            if (! DatabaseCompatibility::supports($version)) {
+                throw ValidationException::withMessages(['db_database' => 'Use MySQL 8.0 or newer, or MariaDB 10.3 or newer.']);
             }
         } catch (ValidationException $exception) {
             throw $exception;
@@ -72,7 +72,7 @@ class WebInstaller
     public function assertDatabaseAvailable(array $data): void
     {
         $schema = DB::connection()->getSchemaBuilder();
-        if ($schema->getTableListing() === []) {
+        if ($schema->getAllTables() === []) {
             return;
         }
         $marker = $this->directory().'/database.json';

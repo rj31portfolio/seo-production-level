@@ -11,10 +11,7 @@ class RankingEntry extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['observed_on' => 'date', 'position' => 'integer'];
-    }
+    protected $casts = ['keyword_id' => 'integer', 'user_id' => 'integer', 'observed_on' => 'date', 'position' => 'integer'];
 
     public function keyword(): BelongsTo
     {

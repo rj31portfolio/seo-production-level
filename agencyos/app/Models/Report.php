@@ -13,10 +13,7 @@ class Report extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['snapshot' => 'array'];
-    }
+    protected $casts = ['user_id' => 'integer', 'project_id' => 'integer', 'seo_tool_run_id' => 'integer', 'pdf_requested_by' => 'integer', 'snapshot' => 'array'];
 
     public function run(): BelongsTo
     {

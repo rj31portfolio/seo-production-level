@@ -10,11 +10,13 @@ use App\Policies\OperationalPolicy;
 use App\Policies\SeoToolRunPolicy;
 use App\Services\Seo\ToolRegistry;
 use App\Services\WebInstaller;
+use App\Services\ViteAssets;
 use App\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(TenantContext::class, fn () => new TenantContext);
+        $this->app->singleton(\Illuminate\Foundation\Vite::class, ViteAssets::class);
     }
 
     /**
@@ -32,13 +35,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Validator::extend('extensions', fn (string $attribute, mixed $value, array $extensions): bool => $value instanceof UploadedFile
+            && in_array(strtolower($value->getClientOriginalExtension()), $extensions, true), 'The :attribute must have one of these extensions: :extensions.');
+        Validator::replacer('extensions', fn (string $message, string $attribute, string $rule, array $extensions): string => str_replace(':extensions', implode(', ', $extensions), $message));
+
         if (app(WebInstaller::class)->enabled()) {
             config(['cache.limiter' => 'file']);
-        }
-        if ($this->app->runningInConsole()) {
-            DevCommands::register('"'.PHP_BINARY.'" artisan serve', 'server');
-            DevCommands::register('"'.PHP_BINARY.'" artisan queue:work --queue=seo,default --sleep=3 --tries=1 --timeout=1800 --memory=384', 'queue');
-            DevCommands::register('"'.PHP_BINARY.'" artisan schedule:work', 'scheduler');
         }
         foreach ([Client::class, Project::class, Website::class] as $model) {
             Gate::policy($model, OperationalPolicy::class);

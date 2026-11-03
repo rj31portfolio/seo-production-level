@@ -11,10 +11,7 @@ class BacklinkVerification extends TenantModel
 
     protected $guarded = ['id', 'agency_id'];
 
-    protected function casts(): array
-    {
-        return ['data' => 'array', 'checked_at' => 'datetime'];
-    }
+    protected $casts = ['backlink_id' => 'integer', 'data' => 'array', 'checked_at' => 'datetime'];
 
     public function backlink(): BelongsTo
     {

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\DatabaseCompatibility;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -13,8 +14,8 @@ class Doctor extends Command
 
     public function handle(): int
     {
-        $ok = version_compare(PHP_VERSION, '8.3', '>=');
-        $this->line('PHP '.PHP_VERSION.': '.($ok ? 'OK' : 'ERROR: 8.3+ required'));
+        $ok = version_compare(PHP_VERSION, '8.0.2', '>=');
+        $this->line('PHP '.PHP_VERSION.': '.($ok ? 'OK' : 'ERROR: 8.0.2+ required'));
         foreach (['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'gd', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'session', 'tokenizer', 'xml', 'zip'] as $ext) {
             $loaded = extension_loaded($ext);
             $this->line($ext.': '.($loaded ? 'OK' : 'ERROR'));
@@ -25,17 +26,18 @@ class Doctor extends Command
             $this->line(basename($path).': '.($writable ? 'writable' : 'ERROR: not writable'));
             $ok = $ok && $writable;
         }
+        $driver = null;
         try {
             DB::select('SELECT 1');
             $driver = DB::connection()->getDriverName();
             $this->line('Database connection: OK ('.$driver.')');
-            if ($driver === 'mysql') {
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
                 $version = DB::selectOne('SELECT VERSION() AS version')->version;
-                $mysql = ! str_contains($version, 'MariaDB') && version_compare($version, '8.0', '>=');
-                $this->line('MySQL 8+: '.($mysql ? 'OK' : 'ERROR: requested MySQL 8+ is required for production validation'));
-                $ok = $ok && $mysql;
+                $supported = DatabaseCompatibility::supports($version);
+                $this->line('MySQL 8+ or MariaDB 10.3+: '.($supported ? 'OK' : 'ERROR: unsupported database version'));
+                $ok = $ok && $supported;
             } else {
-                $this->warn('SQLite supports local tests; MySQL 8 production validation is outstanding.');
+                $this->warn('SQLite supports local tests; MySQL/MariaDB production validation is outstanding.');
             }
         } catch (\Throwable $e) {
             $this->error('Database connection failed. Check private environment configuration.');
@@ -60,7 +62,7 @@ class Doctor extends Command
                 'Deliverable mail transport' => ! in_array(config('mail.default'), ['log', 'array'], true),
                 'Asynchronous queue backend' => ! in_array(config('queue.default'), ['sync', 'null'], true),
                 'Production assets built' => is_file(public_path('build/manifest.json')) && ! is_file(public_path('hot')),
-                'MySQL production database' => config('database.default') === 'mysql',
+                'MySQL/MariaDB production database' => in_array($driver, ['mysql', 'mariadb'], true),
             ];
             try {
                 $migrator = app('migrator');

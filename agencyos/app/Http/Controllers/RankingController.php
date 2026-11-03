@@ -37,7 +37,7 @@ class RankingController extends Controller
 
     public function store(Request $request, ToolAccess $access): RedirectResponse
     {
-        $data = $request->validate(['project_id' => 'required|integer', 'keyword' => 'required|string|max:200', 'target_url' => 'nullable|url:http,https|max:2048']);
+        $data = $request->validate(['project_id' => 'required|integer', 'keyword' => 'required|string|max:200', 'target_url' => 'nullable|url|starts_with:http://,https://|max:2048']);
         $project = Project::findOrFail($data['project_id']);
         $access->authorizeRun($request->user(), 'rank-tracker', $project);
         DB::transaction(function () use ($data, $access): void {

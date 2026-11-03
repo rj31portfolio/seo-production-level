@@ -44,7 +44,7 @@ class KeywordFile
                 $reader->setReadDataOnly(true);
                 $reader->setReadFilter(new class implements IReadFilter
                 {
-                    public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+                    public function readCell($columnAddress, $row, $worksheetName = ''): bool
                     {
                         return $columnAddress === 'A' && $row <= 502;
                     }

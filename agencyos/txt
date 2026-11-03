@@ -1,0 +1,10 @@
+This check fails when Laravel cannot find public/build/manifest.json, or when public/hot exists.
+In your hosting File Manager:
+1. Confirm these files exist:
+   agencyos/public/build/manifest.json
+   agencyos/public/build/assets/
+   If missing, upload the entire public/build folder from your local project.
+2. Delete agencyos/public/hot if it exists.
+3. Set build folders to 755 and files to 644, then refresh /install.
+Did you move the contents of agencyos/public into public_html? If yes, Laravel may be checking a different folder. Send the server paths for artisan and public_html/index.php so I can give you the exact path correction.
+

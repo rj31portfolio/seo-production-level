@@ -10,10 +10,7 @@ class Website extends TenantModel
 
     protected $fillable = ['client_id', 'name', 'url', 'cms', 'hosting', 'industry', 'country', 'target_locations', 'status'];
 
-    protected function casts(): array
-    {
-        return ['verified_at' => 'datetime'];
-    }
+    protected $casts = ['client_id' => 'integer', 'verified_at' => 'datetime'];
 
     public function client()
     {

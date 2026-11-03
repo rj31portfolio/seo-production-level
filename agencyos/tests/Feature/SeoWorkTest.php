@@ -61,7 +61,7 @@ class SeoWorkTest extends TestCase
         $this->post('/seo/runs/'.$this->run->id.'/tasks')->assertRedirect();
         $this->assertDatabaseCount('seo_tasks', 1);
         $task = DB::table('seo_tasks')->first();
-        $this->assertSame($this->developer->id, $task->assigned_to);
+        $this->assertSame($this->developer->id, (int) $task->assigned_to);
         $this->actingAs($this->developer);
         $this->get('/seo/tasks')->assertOk()->assertSee('Https');
         $this->patch('/seo/tasks/'.$task->id, ['status' => 'completed'])->assertForbidden();

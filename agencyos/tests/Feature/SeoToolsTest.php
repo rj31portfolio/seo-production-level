@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\Seo\SafeFetcher;
 use App\Tenancy\TenantContext;
 use Database\Seeders\PermissionSeeder;
-use Illuminate\Foundation\DevCommands;
+use App\Console\Commands\Dev;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -54,10 +54,10 @@ class SeoToolsTest extends TestCase
 
     public function test_development_worker_processes_seo_jobs_using_the_current_php_runtime(): void
     {
-        $worker = collect(DevCommands::commands())->firstWhere('name', 'queue');
+        $worker = app(Dev::class)->processes()['queue'];
         $this->assertNotNull($worker);
-        $this->assertStringContainsString('--queue=seo,default', $worker['command']);
-        $this->assertStringStartsWith('"'.PHP_BINARY.'" artisan', $worker['command']);
+        $this->assertStringContainsString('--queue=seo,default', $worker);
+        $this->assertStringStartsWith('"'.PHP_BINARY.'" artisan', $worker);
     }
 
     public function test_another_website_starts_a_fresh_audit_and_preserves_previous_results(): void

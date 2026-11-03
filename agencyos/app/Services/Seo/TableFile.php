@@ -46,7 +46,7 @@ class TableFile
                 $reader->setReadDataOnly(true);
                 $reader->setReadFilter(new class implements IReadFilter
                 {
-                    public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+                    public function readCell($columnAddress, $row, $worksheetName = ''): bool
                     {
                         return Coordinate::columnIndexFromString($columnAddress) <= 10 && $row <= 502;
                     }

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Finder\Finder;
 use Symfony\Component\Process\Process;
 use ZipArchive;
 
@@ -45,7 +46,7 @@ class BuildRelease extends Command
             $token = bin2hex(random_bytes(24));
             $state = ['token_hash' => hash('sha256', $token), 'key' => 'base64:'.base64_encode(random_bytes(32))];
             File::put($stage.'/storage/app/private/installer/setup.json', json_encode($state, JSON_PRETTY_PRINT));
-            $zipPath = $output.'/agencyos-live-'.date('Ymd-His').'.zip';
+            $zipPath = $output.'/agencyos-php80-live-'.date('Ymd-His').'.zip';
             $zip = new ZipArchive;
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
                 throw new \RuntimeException('Could not create the release ZIP.');
@@ -55,12 +56,22 @@ class BuildRelease extends Command
                 if (! $zip->addFile($file->getPathname(), 'agencyos/'.$relative)) {
                     throw new \RuntimeException('Could not archive '.$relative);
                 }
+                $permissions = $relative === 'storage/app/private/installer/setup.json' ? 0600 : 0644;
+                if (! $zip->setExternalAttributesName('agencyos/'.$relative, ZipArchive::OPSYS_UNIX, (0100000 | $permissions) << 16)) {
+                    throw new \RuntimeException('Could not set permissions for '.$relative);
+                }
             }
-            foreach (File::directories($stage) as $directory) {
-                $zip->addEmptyDir('agencyos/'.basename($directory));
+            $directories = [$stage];
+            foreach ((new Finder)->directories()->ignoreDotFiles(false)->in($stage) as $directory) {
+                $directories[] = $directory->getPathname();
             }
-            foreach (['bootstrap/cache', 'storage/app/public', 'storage/framework/cache/data', 'storage/framework/sessions', 'storage/framework/views', 'storage/logs'] as $directory) {
-                $zip->addEmptyDir('agencyos/'.$directory);
+            foreach ($directories as $directory) {
+                $relative = trim(str_replace('\\', '/', substr($directory, strlen($stage))), '/');
+                $entry = 'agencyos/'.($relative === '' ? '' : $relative.'/');
+                $permissions = $relative === 'storage' || str_starts_with($relative, 'storage/') || $relative === 'bootstrap/cache' ? 0775 : 0755;
+                if (! $zip->addEmptyDir($entry) || ! $zip->setExternalAttributesName($entry, ZipArchive::OPSYS_UNIX, ((0040000 | $permissions) << 16) | 0x10)) {
+                    throw new \RuntimeException('Could not archive directory permissions for '.$relative);
+                }
             }
             if (! $zip->close()) {
                 throw new \RuntimeException('Could not finish the release ZIP.');

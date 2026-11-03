@@ -5,6 +5,7 @@ namespace App\Services\Seo;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\IpUtils;
 
 class PublicUrl
 {
@@ -43,7 +44,9 @@ class PublicUrl
             if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && (ord(inet_pton($ip)[0]) & 0xE0) !== 0x20) {
                 throw new RuntimeException('IPv6 translation, mapped and non-global destinations are blocked.');
             }
-            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) || str_starts_with(strtolower($ip), '2002:') || str_starts_with(strtolower($ip), '2001:0:')) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)
+                || IpUtils::checkIp($ip, ['100.64.0.0/10', '192.0.0.0/24', '192.0.2.0/24', '192.88.99.0/24', '198.18.0.0/15', '198.51.100.0/24', '203.0.113.0/24', '224.0.0.0/4', '2001::/23', '2001:db8::/32', '2002::/16'])
+            ) {
                 throw new RuntimeException('Private, reserved, and local network destinations are blocked.');
             }
         }
